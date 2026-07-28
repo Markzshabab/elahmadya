@@ -6,7 +6,6 @@
  *  - Read the caller's real IP server-side (cannot be spoofed by client)
  *  - Hash the IP (SHA-256 + salt) for storage — never store raw IP
  *  - Enforce ONE vote per IP, permanently (no edits, no deletes from client)
- *  - Verify Cloudflare Turnstile token
  *  - Reject VPN / Proxy / Tor / datacenter traffic using CF's signals
  *  - Rate limit requests
  *  - Handle media uploads to R2, push to moderation queue
@@ -20,7 +19,6 @@
  *  - FIREBASE_SECRET       (Firebase legacy database secret OR use a
  *                           service-account + Google OAuth token exchange
  *                           for production — see docs/DEPLOY_WORKER.md)
- *  - TURNSTILE_SECRET      (secret from Cloudflare Turnstile dashboard)
  *  - ADMIN_PASSWORD_SALT   (secret — separate from IP_SALT)
  *  - RATE_LIMIT_KV         (Workers KV namespace for rate limiting)
  * =========================================================
@@ -88,17 +86,6 @@ function isSuspiciousTraffic(request) {
   return false;
 }
 
-async function verifyTurnstile(token, ip, env) {
-  if (!token) return false;
-  const res = await fetch("https://challenges.cloudflare.com/turnstile/v0/siteverify", {
-    method: "POST",
-    headers: { "Content-Type": "application/x-www-form-urlencoded" },
-    body: `secret=${env.TURNSTILE_SECRET}&response=${token}&remoteip=${ip}`,
-  });
-  const data = await res.json();
-  return data.success === true;
-}
-
 async function rateLimit(env, key, limit, windowSeconds) {
   const now = Date.now();
   const raw = await env.RATE_LIMIT_KV.get(key);
@@ -155,7 +142,7 @@ async function handleVote(request, env) {
   if (!withinLimit) return json({ success: false, message: "طلبات كثيرة جدًا، حاول بعد قليل" }, 429);
 
   const body = await request.json();
-  const { q1, q2, q3, turnstileToken } = body;
+  const { q1, q2, q3 } = body;
 
   const validQ1 = ["satisfied", "not_satisfied"];
   const validQ2 = ["youth", "current"];
@@ -163,9 +150,6 @@ async function handleVote(request, env) {
   if (!validQ1.includes(q1) || !validQ2.includes(q2) || !validQ3.includes(q3)) {
     return json({ success: false, message: "بيانات غير صالحة" }, 400);
   }
-
-  const turnstileOK = await verifyTurnstile(turnstileToken, ip, env);
-  if (!turnstileOK) return json({ success: false, message: "فشل التحقق الأمني (Turnstile)" }, 403);
 
   // Ban check
   const banned = await fbGet(env, `banned_ips/${ipHash}`);
