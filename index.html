@@ -1,0 +1,244 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#0B0F1A">
+<meta name="description" content="استبيان عام لأهالي قرية الأحمدية حول مستقبل مركز الشباب - نتائج فورية وشفافة">
+<meta property="og:title" content="استبيان مركز شباب الأحمدية">
+<meta property="og:description" content="شارك برأيك في مستقبل مركز الشباب - استبيان آمن وشفاف لأهالي الأحمدية">
+<meta property="og:type" content="website">
+<meta name="twitter:card" content="summary_large_image">
+<title>استبيان مركز شباب الأحمدية</title>
+
+<link rel="manifest" href="manifest.json">
+<link rel="icon" href="assets/icons/icon-192.png">
+<link rel="apple-touch-icon" href="assets/icons/icon-192.png">
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;800;900&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+<link rel="stylesheet" href="style.css">
+
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "SurveyAction",
+  "name": "استبيان مركز شباب الأحمدية",
+  "description": "استبيان عام لأهالي قرية الأحمدية حول مستقبل مركز الشباب"
+}
+</script>
+</head>
+<body>
+
+<!-- ============ SPLASH / INTRO SEQUENCE ============ -->
+<div id="intro" class="intro-screen" aria-hidden="false">
+  <div id="particles-intro" class="particles-layer"></div>
+
+  <div class="intro-cards" id="introCards">
+    <article class="info-card" data-card="1">
+      <i class="fa-solid fa-futbol card-icon"></i>
+      <p>يلعب مركز الشباب دورًا مهمًا في الرياضة من خلال تشجيع الأنشطة الرياضية، وتكوين الفرق، وتنظيم البطولات، وتحفيز اللياقة البدنية.</p>
+    </article>
+    <article class="info-card" data-card="2">
+      <i class="fa-solid fa-lightbulb card-icon"></i>
+      <p>يعمل المركز على تنمية الوعي الثقافي والعلمي من خلال تنظيم الندوات، ودعم الإبداع، وتشجيع التعليم.</p>
+    </article>
+    <article class="info-card" data-card="3">
+      <i class="fa-solid fa-hands-holding-child card-icon"></i>
+      <p>يعزز المركز المسؤولية المجتمعية والعمل التطوعي والخدمة البيئية والانتماء الوطني.</p>
+    </article>
+    <article class="info-card" data-card="4">
+      <i class="fa-solid fa-building-columns card-icon"></i>
+      <p>تتولى الإدارة مسؤولية التخطيط للأنشطة، وصيانة المرافق، وتطوير الملاعب، وخدمة المجتمع.</p>
+    </article>
+  </div>
+
+  <!-- LOGO SCENE -->
+  <div class="logo-scene" id="logoScene" aria-hidden="true">
+    <div class="ring ring-1"></div>
+    <div class="ring ring-2"></div>
+    <div class="ring ring-3"></div>
+    <div class="beam beam-1"></div>
+    <div class="beam beam-2"></div>
+    <div class="logo-core">
+      <i class="fa-solid fa-star-and-crescent" aria-hidden="true"></i>
+      <span>مركز شباب الأحمدية</span>
+    </div>
+  </div>
+
+  <button id="skipIntro" class="btn-ghost skip-btn" type="button">تخطي المقدمة <i class="fa-solid fa-forward"></i></button>
+</div>
+
+<!-- ============ MAIN APP ============ -->
+<main id="app" class="app-shell" hidden>
+
+  <header class="topbar">
+    <div class="brand"><i class="fa-solid fa-star-and-crescent"></i> مركز شباب الأحمدية</div>
+    <button id="soundToggle" class="icon-btn" aria-label="تشغيل/إيقاف الصوت"><i class="fa-solid fa-volume-high"></i></button>
+  </header>
+
+  <!-- ---------- HOME / SURVEY VIEW ---------- -->
+  <section id="view-survey" class="view active" aria-labelledby="surveyTitle">
+    <h1 id="surveyTitle" class="section-title">استبيان أهل الأحمدية</h1>
+    <p class="section-sub">صوتك يهم. اختر إجابتك بكل حرية وأمان — تصويت واحد فقط لكل شخص.</p>
+
+    <div id="alreadyVotedNotice" class="notice-card" hidden>
+      <i class="fa-solid fa-circle-check"></i>
+      <div>
+        <strong>تم تسجيل تصويتك بالفعل</strong>
+        <p>لا يمكن تعديل التصويت بعد إرساله للحفاظ على نزاهة النتائج.</p>
+        <p class="ip-tag">تم التسجيل من عنوان IP: <span id="ipMasked">**.**.**.****</span></p>
+      </div>
+    </div>
+
+    <form id="surveyForm" class="survey-form">
+      <fieldset class="question-card" data-q="1">
+        <legend>1. ما مدى رضاك عن إدارة مركز شباب الأحمدية خلال السنوات الخمس الماضية؟</legend>
+        <label class="choice"><input type="radio" name="q1" value="satisfied" required><span>راضٍ جدًا</span></label>
+        <label class="choice"><input type="radio" name="q1" value="not_satisfied"><span>غير راضٍ</span></label>
+      </fieldset>
+
+      <fieldset class="question-card" data-q="2">
+        <legend>2. هل تدعم إعطاء الشباب فرصة إدارة المركز خلال السنوات الخمس القادمة؟</legend>
+        <label class="choice"><input type="radio" name="q2" value="youth" required><span>نعم، نحتاج قيادة شبابية</span></label>
+        <label class="choice"><input type="radio" name="q2" value="current"><span>لا، استمرار الإدارة الحالية</span></label>
+      </fieldset>
+
+      <fieldset class="question-card" data-q="3">
+        <legend>3. في انتخابات المركز القادمة، لمن ستمنح صوتك؟</legend>
+        <label class="choice"><input type="radio" name="q3" value="new_youth" required><span>الشباب الجديد</span></label>
+        <label class="choice"><input type="radio" name="q3" value="current_mgmt"><span>الإدارة الحالية</span></label>
+      </fieldset>
+
+      <div id="turnstileWidget" class="turnstile-box"></div>
+
+      <button type="submit" class="btn-primary" id="submitVoteBtn">
+        <i class="fa-solid fa-paper-plane"></i> إرسال التصويت
+      </button>
+      <p class="fine-print">بالضغط على "إرسال التصويت" أنت توافق على أن التصويت نهائي ولا يمكن تعديله أو حذفه.</p>
+    </form>
+  </section>
+
+  <!-- ---------- MEDIA VIEW (video OR voice note) ---------- -->
+  <section id="view-media" class="view" aria-labelledby="mediaTitle">
+    <h1 id="mediaTitle" class="section-title">شاركنا برسالة صوت أو فيديو</h1>
+    <p class="section-sub">هل تحب أن تسجل فيديو قصير (30 ثانية)؟ أو إذا كنت تفضل عدم الظهور، يمكنك تسجيل رسالة صوتية بدلاً من ذلك.</p>
+
+    <div class="suggested-msgs">
+      <span class="chip">"أنا أدعم الشباب الجديد"</span>
+      <span class="chip">"أنا أدعم القيادة الشبابية"</span>
+      <span class="chip">"مركز الشباب ملك للشباب"</span>
+    </div>
+
+    <div class="media-mode-switch" role="tablist" aria-label="اختر نوع المشاركة">
+      <button class="mode-btn active" data-mode="video" role="tab" aria-selected="true">
+        <i class="fa-solid fa-video"></i> تسجيل فيديو
+      </button>
+      <button class="mode-btn" data-mode="voice" role="tab" aria-selected="false">
+        <i class="fa-solid fa-microphone"></i> تسجيل فويس نوت (بدون ظهور)
+      </button>
+    </div>
+
+    <div class="capture-stage">
+      <video id="cameraPreview" playsinline muted autoplay></video>
+      <div id="voiceStage" class="voice-stage" hidden>
+        <div class="voice-orb" id="voiceOrb"><i class="fa-solid fa-microphone"></i></div>
+        <p>سجّل صوتك فقط — لن يظهر وجهك أو اسمك</p>
+      </div>
+      <div class="timer-ring"><span id="recTimer">00:00</span></div>
+    </div>
+
+    <div class="capture-controls">
+      <button id="startRec" class="btn-record"><i class="fa-solid fa-circle"></i> ابدأ التسجيل</button>
+      <button id="stopRec" class="btn-primary" hidden><i class="fa-solid fa-stop"></i> إيقاف وإرسال</button>
+      <button id="retakeRec" class="btn-ghost" hidden><i class="fa-solid fa-rotate-left"></i> إعادة التسجيل</button>
+    </div>
+    <p class="fine-print">الحد الأقصى 30 ثانية و 100 ميجابايت. كل الفيديوهات والتسجيلات الصوتية تخضع لمراجعة قبل النشر العام. التسجيل من الكاميرا/الميكروفون مباشرة فقط — لا يمكن رفع ملفات من الجهاز.</p>
+  </section>
+
+  <!-- ---------- VIDEO/VOICE WALL ---------- -->
+  <section id="view-wall" class="view" aria-labelledby="wallTitle">
+    <h1 id="wallTitle" class="section-title">مشاركات أهل الأحمدية</h1>
+    <p class="section-sub">فيديوهات وتسجيلات صوتية معتمدة من الأهالي — تُعرض بالتتابع تلقائيًا</p>
+    <div id="mediaWall" class="media-wall" aria-live="polite">
+      <div class="wall-empty" id="wallEmpty">
+        <i class="fa-solid fa-clapperboard"></i>
+        <p>لا توجد مشاركات معتمدة حتى الآن</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- ---------- STATS VIEW ---------- -->
+  <section id="view-stats" class="view" aria-labelledby="statsTitle">
+    <h1 id="statsTitle" class="section-title">النتائج المباشرة</h1>
+    <p class="section-sub">تُحدَّث تلقائيًا لحظة تسجيل كل صوت</p>
+
+    <div class="counters-grid">
+      <div class="counter-card"><span class="counter-num" id="cTotalVotes">0</span><span class="counter-label">إجمالي الأصوات</span></div>
+      <div class="counter-card"><span class="counter-num" id="cToday">0</span><span class="counter-label">أصوات اليوم</span></div>
+      <div class="counter-card"><span class="counter-num" id="cWeek">0</span><span class="counter-label">أصوات هذا الأسبوع</span></div>
+      <div class="counter-card"><span class="counter-num" id="cVideos">0</span><span class="counter-label">مشاركات مُرسلة</span></div>
+      <div class="counter-card"><span class="counter-num" id="cApproved">0</span><span class="counter-label">مشاركات معتمدة</span></div>
+      <div class="counter-card"><span class="counter-num" id="cRejected">0</span><span class="counter-label">مشاركات مرفوضة</span></div>
+    </div>
+
+    <div class="charts-grid">
+      <div class="chart-card"><h3>السؤال 1: الرضا عن الإدارة</h3><canvas id="chartQ1"></canvas></div>
+      <div class="chart-card"><h3>السؤال 2: دعم القيادة الشبابية</h3><canvas id="chartQ2"></canvas></div>
+      <div class="chart-card"><h3>السؤال 3: نية التصويت في الانتخابات</h3><canvas id="chartQ3"></canvas></div>
+    </div>
+  </section>
+
+  <!-- ---------- BOTTOM TAB BAR (mobile) ---------- -->
+  <nav class="bottom-tabbar" role="tablist" aria-label="التنقل الرئيسي">
+    <button class="tab-btn active" data-view="survey" role="tab" aria-selected="true">
+      <i class="fa-solid fa-square-poll-vertical"></i><span>التصويت</span>
+    </button>
+    <button class="tab-btn" data-view="media" role="tab" aria-selected="false">
+      <i class="fa-solid fa-video"></i><span>سجّل مشاركتك</span>
+    </button>
+    <button class="tab-btn" data-view="wall" role="tab" aria-selected="false">
+      <i class="fa-solid fa-clapperboard"></i><span>المشاركات</span>
+    </button>
+    <button class="tab-btn" data-view="stats" role="tab" aria-selected="false">
+      <i class="fa-solid fa-chart-pie"></i><span>النتائج</span>
+    </button>
+  </nav>
+
+  <footer class="app-footer">
+    <p class="disclaimer">
+      الغرض من هذا الاستبيان هو التعرف على آراء أهالي قرية الأحمدية حول مستقبل مركز الشباب.
+      يستخدم هذا الاستبيان عدة وسائل تقنية للمساعدة في الحفاظ على نزاهة الإجابات، والحد من التكرار، وتحسين الشفافية.
+    </p>
+    <p class="credit">
+      تم تطوير هذا الاستبيان بواسطة صفحة
+      <a href="https://www.facebook.com/profile.php?id=100036184718999" target="_blank" rel="noopener noreferrer">"الأحمدية بلدنا"</a>
+      على فيسبوك
+    </p>
+  </footer>
+</main>
+
+<!-- ============ PWA INSTALL BANNER (real app install, not shortcut) ============ -->
+<div id="installBanner" class="install-banner" hidden>
+  <i class="fa-solid fa-mobile-screen-button"></i>
+  <div class="install-text">
+    <strong>ثبّت التطبيق على هاتفك</strong>
+    <span>تجربة أسرع وأسهل بدون متصفح</span>
+  </div>
+  <button id="installBtn" class="btn-primary">تثبيت</button>
+  <button id="dismissInstall" class="icon-btn" aria-label="إغلاق"><i class="fa-solid fa-xmark"></i></button>
+</div>
+
+<div id="toast" class="toast" role="status" aria-live="polite"></div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/gsap.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/chart.js/4.4.3/chart.umd.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@tsparticles/confetti@3/tsparticles.confetti.bundle.min.js" defer></script>
+<script src="https://challenges.cloudflare.com/turnstile/v0/api.js" async defer></script>
+<script type="module" src="firebase-config.js"></script>
+<script type="module" src="charts.js"></script>
+<script type="module" src="animations.js"></script>
+<script type="module" src="app.js"></script>
+</body>
+</html>
