@@ -45,8 +45,13 @@ function playChime() {
   } catch (e) { /* audio not available */ }
 }
 
+let introSkipped = false;
+
 async function runIntro() {
-  const skip = () => finishIntro();
+  const skip = () => {
+    introSkipped = true; // stop the background sequence below from re-running finishIntro()
+    finishIntro();
+  };
   $("#skipIntro").addEventListener("click", skip);
 
   const cards = $$(".info-card");
@@ -54,23 +59,32 @@ async function runIntro() {
   if (seenIntro) { finishIntro(); return; }
 
   for (let i = 0; i < cards.length; i++) {
+    if (introSkipped) return;
     playChime();
     cards[i].classList.add("show");
     await wait(2600);
+    if (introSkipped) return;
     cards[i].classList.remove("show");
     await wait(500);
   }
+  if (introSkipped) return;
 
   const scene = $("#logoScene");
   scene.classList.add("show");
   playChime();
   await wait(3200);
+  if (introSkipped) return;
 
   sessionStorage.setItem("ahmadiya_intro_seen", "1");
   finishIntro();
 }
 
+let introFinished = false;
+
 function finishIntro() {
+  if (introFinished) return; // guard against double-invocation (e.g. skip + natural completion)
+  introFinished = true;
+
   const intro = $("#intro");
   intro.style.transition = "opacity .6s ease";
   intro.style.opacity = "0";
@@ -407,6 +421,8 @@ function initSoundToggle() {
 function renderTurnstile() {
   const box = $("#turnstileWidget");
   if (!box || !window.turnstile || CONFIG.TURNSTILE_SITE_KEY.startsWith("REPLACE")) return;
+  if (box.dataset.rendered === "1") return; // avoid "already been rendered" error on double init
+  box.dataset.rendered = "1";
   window.turnstile.render(box, { sitekey: CONFIG.TURNSTILE_SITE_KEY });
 }
 
