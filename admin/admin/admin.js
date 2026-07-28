@@ -1,17 +1,14 @@
 /**
  * لوحة تحكم الإدارة - El Ahmadiya Survey Admin
- * ✅ يدعم الآن: Firebase Direct + Worker Fallback
+ * ✅ إصدار مصحح - يستخدم Firebase REST API مباشرة
  * ✅ جلب البيانات والميديا بشكل موثوق
+ * ✅ بدون اعتماد على Firebase SDK
  */
 
 const CONFIG = {
-    // Firebase Configuration
-    FIREBASE_CONFIG: {
-        apiKey: "AIzaSyAB6GT-198Ns1W8a722ACFeouK6RvUDuwc",
-        authDomain: "markzshabab-4c01b.firebaseapp.com",
-        databaseURL: "https://markzshabab-4c01b-default-rtdb.firebaseio.com",
-        projectId: "markzshabab-4c01b",
-    },
+    // Firebase REST API (Direct!)
+    FIREBASE_DB_URL: 'https://markzshabab-4c01b-default-rtdb.firebaseio.com',
+    FIREBASE_PATH: 'survey/submissions',
     
     // R2 Storage
     R2_BASE_URL: 'https://pub-3fb0b86037554ed0b842bc258e8a3051.r2.dev',
@@ -25,7 +22,6 @@ const admin = {
     allData: [],
     filteredData: [],
     currentFilter: 'all',
-    db: null,
 
     // ==================== تسجيل الدخول ====================
     
@@ -37,7 +33,7 @@ const admin = {
         sessionStorage.setItem('admin_token', this.token);
         
         this.showToast('جاري التحميل...');
-        this.initializeFirebase();
+        this.fetchData();
     },
 
     logout() {
@@ -48,463 +44,316 @@ const admin = {
         document.getElementById('dashboard-screen').style.display = 'none';
     },
 
-    // ==================== تهيئة Firebase ====================
-    
-    async initializeFirebase() {
-        try {
-            const tbody = document.getElementById('table-body');
-            tbody.innerHTML = `
-                <tr>
-                    <td colspan="10" class="loading-spinner">
-                        <i class="fas fa-spinner fa-spin fa-2x"></i>
-                        <p style="margin-top: 15px; color: #f4c430;">جاري الاتصال بقاعدة البيانات...</p>
-                    </td>
-                </tr>
-            `;
-
-            // تحميل Firebase ديناميكياً
-            const { initializeApp } = await import('https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js');
-            const { getDatabase, ref, onValue, get, set, update, remove } = await import('https://www.gstatic.com/firebasejs/10.8.0/firebase-database.js');
-
-            // تهيئة Firebase
-            const app = initializeApp(CONFIG.FIREBASE_CONFIG);
-            this.db = getDatabase(app);
-            
-            console.log('✅ Firebase initialized successfully');
-            
-            // جلب البيانات
-            await this.fetchFromFirebase();
-            
-        } catch (error) {
-            console.error('❌ Firebase initialization error:', error);
-            this.showToast('خطأ في الاتصال بـ Firebase، جرب Worker...', 'error');
-            // Fallback to Worker
-            await this.fetchFromWorker();
-        }
-    },
-
-    // ==================== جلب البيانات من Firebase (المصدر الرئيسي) ====================
-    
-    async fetchFromFirebase() {
-        try {
-            if (!this.db) throw new Error('Firebase not initialized');
-            
-            const { ref, get } = await import('https://www.gstatic.com/firebasejs/10.8.0/firebase-database.js');
-            
-            const submissionsRef = ref(this.db, 'survey/submissions');
-            const snapshot = await get(submissionsRef);
-            
-            const data = snapshot.val();
-            let submissionsArray = [];
-            
-            if (data) {
-                Object.keys(data).forEach(key => {
-                    const submission = data[key];
-                    submissionsArray.push({
-                        id: key,
-                        ...submission,
-                        // تأكد من وجود mediaUrl من R2
-                        mediaUrl: submission.mediaUrl || 
-                                  (submission.mediaId ? `${CONFIG.R2_BASE_URL}/media/${submission.mediaId}` : null)
-                    });
-                });
-                
-                console.log(`✅ Firebase: تم جلب ${submissionsArray.length} تسجيل`);
-            }
-            
-            this.allData = submissionsArray.map((item, index) => ({
-                ...item,
-                index: index + 1
-            }));
-
-            // Show dashboard
-            document.getElementById('login-screen').style.display = 'none';
-            document.getElementById('dashboard-screen').style.display = 'block';
-
-            // Update UI
-            this.updateStats();
-            this.applyFilter();
-            this.updateFilterCounts();
-
-            const mediaCount = this.allData.filter(s => s.mediaUrl || s.mediaType).length;
-            this.showToast(`تم تحميل ${this.allData.length} تصويت (${mediaCount} بمحتوى)`);
-
-        } catch (error) {
-            console.error('❌ Firebase fetch error:', error);
-            throw error; // سيتم التقاطه واستدعاء Worker كـ fallback
-        }
-    },
-
-    // ==================== جلب البيانات من Worker (Fallback) ====================
-    
-    async fetchFromWorker() {
-        try {
-            const tbody = document.getElementById('table-body');
-            tbody.innerHTML = `
-                <tr>
-                    <td colspan="10" class="loading-spinner">
-                        <i class="fas fa-spinner fa-spin fa-2x"></i>
-                        <p style="margin-top: 15px; color: #f4c430;">جاري التحميل من الخادم الاحتياطي...</p>
-                    </td>
-                </tr>
-            `;
-            
-            console.log('Fetching from:', `${CONFIG.WORKER_URL}/admin/submissions`);
-            
-            const res = await fetch(`${CONFIG.WORKER_URL}/admin/submissions`, {
-                headers: { 
-                    'Authorization': `Bearer ${this.token}`,
-                    'Content-Type': 'application/json'
-                }
-            });
-
-            console.log('Response status:', res.status);
-
-            if (res.status === 401) {
-                this.showToast('كلمة المرور غير صحيحة', 'error');
-                sessionStorage.removeItem('admin_token');
-                this.token = null;
-                return;
-            }
-
-            const data = await res.json();
-            console.log('Received data:', data);
-
-            // Handle response format
-            let submissionsArray = Array.isArray(data) ? data : Object.values(data);
-            
-            // Add R2 URLs to media items
-            submissionsArray = submissionsArray.map(item => ({
-                ...item,
-                mediaUrl: item.mediaUrl || 
-                          (item.mediaId ? `${CONFIG.R2_BASE_URL}/media/${item.mediaId}` : null)
-            }));
-            
-            this.allData = submissionsArray.map((item, index) => ({
-                ...item,
-                index: index + 1
-            }));
-
-            // Show dashboard
-            document.getElementById('login-screen').style.display = 'none';
-            document.getElementById('dashboard-screen').style.display = 'block';
-
-            // Update UI
-            this.updateStats();
-            this.applyFilter();
-            this.updateFilterCounts();
-
-            const mediaCount = this.allData.filter(s => s.mediaUrl).length;
-            this.showToast(`تم تحميل ${this.allData.length} تصويت (${mediaCount} بمحتوى)`);
-
-        } catch (error) {
-            console.error('❌ Worker fetch error:', error);
-            this.showErrorState(error.message);
-        }
-    },
-    
-    // ==================== Main Fetch Data (tries both sources) ====================
+    // ==================== جلب البيانات الرئيسي ====================
     
     async fetchData() {
         try {
-            // Try Firebase first
-            await this.initializeFirebase();
-        } catch (firebaseError) {
-            console.warn('⚠️ Firebase failed, trying Worker:', firebaseError.message);
-            try {
-                // Fallback to Worker
-                await this.fetchFromWorker();
-            } catch (workerError) {
-                console.error('❌ Both sources failed:', workerError);
-                this.showErrorState('فشل تحميل البيانات من جميع المصادر');
+            this.showToast('جاري تحميل البيانات...');
+            
+            // Try Firebase REST API first (Primary)
+            let data = await this.fetchFromFirebaseREST();
+            
+            // Fallback to Worker if Firebase fails
+            if (!data || data.length === 0) {
+                console.log('⚠️ Firebase فشل، محاولة Worker...');
+                data = await this.fetchFromWorker();
             }
+            
+            if (data && data.length > 0) {
+                this.allData = data;
+                this.filteredData = [...data];
+                this.renderTable(data);
+                this.updateStats(data);
+                this.showDashboard();
+                this.showToast(`✅ تم تحميل ${data.length} تسجيل`);
+            } else {
+                this.showToast('⚠️ لا توجد بيانات', 'error');
+                this.showEmptyTable();
+            }
+            
+        } catch (error) {
+            console.error('❌ Fetch Error:', error);
+            this.showToast('خطأ في تحميل البيانات: ' + error.message, 'error');
+        }
+    },
+    
+    /**
+     * جلب البيانات من Firebase باستخدام REST API مباشرة
+     * الطريقة الأكثر موثوقية - لا تحتاج SDK
+     */
+    async fetchFromFirebaseREST() {
+        try {
+            const url = `${CONFIG.FIREBASE_DB_URL}/${CONFIG.FIREBASE_PATH}.json`;
+            
+            console.log('📡 Admin: جلب البيانات من Firebase:', url);
+            
+            const response = await fetch(url, {
+                method: 'GET',
+                headers: { 'Accept': 'application/json' }
+            });
+            
+            if (!response.ok) {
+                console.error('❌ Firebase HTTP Error:', response.status);
+                return [];
+            }
+            
+            const data = await response.json();
+            const submissions = [];
+            
+            if (data && typeof data === 'object') {
+                Object.keys(data).forEach(key => {
+                    const submission = data[key];
+                    
+                    submissions.push({
+                        id: key,
+                        submissionId: key,
+                        timestamp: submission.timestamp || submission.createdAt || Date.now(),
+                        timestampISO: new Date(submission.timestamp || submission.createdAt || Date.now()).toISOString(),
+                        ip: submission.ip || submission.clientIP || '-',
+                        ipHash: submission.ipHash || this.hashIP(submission.ip || submission.clientIP || ''),
+                        fingerprint: submission.fingerprint?.substring(0, 50) || '-',
+                        votes: submission.votes || {},
+                        mediaUrl: this.buildMediaUrl(submission),
+                        mediaType: submission.mediaType || null,
+                        mediaSize: submission.mediaSize || 0,
+                        status: submission.status || 'pending',
+                        userAgent: submission.userAgent?.substring(0, 100) || '-',
+                        reviewedAt: submission.reviewedAt || null,
+                        hasPlayableMedia: !!(submission.mediaId || submission.mediaUrl || submission.uuid)
+                    });
+                });
+            }
+            
+            console.log(`✅ Firebase REST: تم جلب ${submissions.length} تسجيل`);
+            return submissions;
+            
+        } catch (error) {
+            console.error('❌ Firebase REST Error:', error);
+            return [];
+        }
+    },
+    
+    /**
+     * بناء رابط الميديا من R2
+     */
+    buildMediaUrl(submission) {
+        const mediaId = submission.mediaId || 
+                       submission.uuid || 
+                       submission.id;
+        
+        if (mediaId) {
+            return `${CONFIG.R2_BASE_URL}/media/${mediaId}`;
+        }
+        
+        if (submission.mediaUrl) {
+            return submission.mediaUrl;
+        }
+        
+        return null;
+    },
+    
+    /**
+     * تبسيط IP Hash
+     */
+    hashIP(ip) {
+        if (!ip || ip === '-') return 'unknown';
+        return ip.substring(0, 12) + '...';
+    },
+    
+    /**
+     * Fallback: جلب البيانات من Worker
+     */
+    async fetchFromWorker() {
+        try {
+            const response = await fetch(`${CONFIG.WORKER_URL}/admin/submissions?key=${this.token}`, {
+                method: 'GET',
+                headers: {
+                    'Authorization': `Bearer ${this.token}`,
+                    'Accept': 'application/json'
+                }
+            });
+            
+            if (response.ok) {
+                const data = await response.json();
+                console.log(`✅ Worker: تم جلب ${data.length || 0} تسجيل`);
+                return Array.isArray(data) ? data : [];
+            }
+            
+            return [];
+        } catch (error) {
+            console.error('❌ Worker Error:', error);
+            return [];
         }
     },
 
-    showErrorState(message) {
-        const tbody = document.getElementById('table-body');
-        tbody.innerHTML = `
-            <tr>
-                <td colspan="10" class="empty-state">
-                    <i class="fas fa-exclamation-triangle fa-3x" style="color: #ef4444;"></i>
-                    <p style="margin-top: 15px;">${message || 'فشل تحميل البيانات'}</p>
-                    <button onclick="admin.fetchData()" class="btn-primary" style="margin-top: 20px;">
-                        <i class="fas fa-redo"></i> إعادة المحاولة
-                    </button>
-                </td>
-            </tr>
-        `;
+    showDashboard() {
+        document.getElementById('login-screen').style.display = 'none';
+        document.getElementById('dashboard-screen').style.display = 'block';
     },
 
-    // ==================== الإحصائيات ====================
+    // ==================== تحديث الإحصائيات ====================
     
-    updateStats() {
-        const total = this.allData.length;
-        const pending = this.allData.filter(s => s.status === 'pending').length;
-        const approved = this.allData.filter(s => s.status === 'approved' || s.status === 'accepted').length;
-        const withMedia = this.allData.filter(s => s.mediaUrl || s.mediaType).length;
+    updateStats(data) {
+        const total = data.length;
+        const pending = data.filter(s => s.status === 'pending').length;
+        const approved = data.filter(s => s.status === 'approved' || s.status === 'accepted').length;
+        const rejected = data.filter(s => s.status === 'rejected').length;
+        const withMedia = data.filter(s => s.hasPlayableMedia).length;
 
         document.getElementById('total-votes').textContent = total;
         document.getElementById('pending-count').textContent = pending;
         document.getElementById('approved-count').textContent = approved;
-        document.getElementById('blocked-count').textContent = withMedia;
+        document.getElementById('blocked-count').textContent = rejected;
+
+        // Update filter buttons
+        this.updateFilterButtons(total, pending, approved, rejected, withMedia);
     },
-
-    updateFilterCounts() {
-        const counts = {
-            all: this.allData.length,
-            pending: this.allData.filter(s => s.status === 'pending').length,
-            approved: this.allData.filter(s => s.status === 'approved' || s.status === 'accepted').length,
-            rejected: this.allData.filter(s => s.status === 'rejected' || s.status === 'rejected').length,
-            'has-media': this.allData.filter(s => s.mediaUrl || s.mediaType).length
-        };
-
-        document.querySelectorAll('.filter-btn').forEach(btn => {
-            const filterType = btn.className.match(/(all|pending|approved|rejected|has-media)/)?.[0];
-            if (filterType && counts[filterType] !== undefined) {
-                const text = btn.textContent.split('(')[0].trim();
-                btn.textContent = `${text} (${counts[filterType]})`;
-            }
+    
+    updateFilterButtons(total, pending, approved, rejected, withMedia) {
+        const btns = document.querySelectorAll('.filter-btn');
+        btns.forEach(btn => {
+            if (btn.classList.contains('all')) btn.textContent = `الكل (${total})`;
+            else if (btn.classList.contains('pending')) btn.textContent = `⏳ قيد المراجعة (${pending})`;
+            else if (btn.classList.contains('approved')) btn.textContent = `✅ مقبولة (${approved})`;
+            else if (btn.classList.contains('rejected')) btn.textContent = `❌ مرفوضة (${rejected})`;
+            else if (btn.classList.contains('has-media')) btn.textContent = `🎬 بها ميديا (${withMedia})`;
         });
     },
 
-    // ==================== الفلترة والبحث ====================
-    
-    filterBy(filter, btnElement) {
-        this.currentFilter = filter;
-        
-        document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
-        if (btnElement) btnElement.classList.add('active');
-
-        this.applyFilter();
-    },
-
-    applyFilter() {
-        let filtered = [...this.allData];
-
-        switch (this.currentFilter) {
-            case 'pending':
-                filtered = filtered.filter(s => s.status === 'pending');
-                break;
-            case 'approved':
-                filtered = filtered.filter(s => s.status === 'approved' || s.status === 'accepted');
-                break;
-            case 'rejected':
-                filtered = filtered.filter(s => s.status === 'rejected' || s.status === 'rejected');
-                break;
-            case 'has-media':
-                filtered = filtered.filter(s => s.mediaUrl || s.mediaType);
-                break;
-        }
-
-        const searchQuery = document.getElementById('search-box')?.value?.toLowerCase() || '';
-        if (searchQuery) {
-            filtered = filtered.filter(item =>
-                JSON.stringify(item).toLowerCase().includes(searchQuery)
-            );
-        }
-
-        this.filteredData = filtered;
-        this.renderTable(filtered);
-    },
-
-    searchTable() {
-        this.applyFilter();
-    },
-
-    // ==================== عرض الجدول مع الميديا ====================
+    // ==================== عرض الجدول ====================
     
     renderTable(data) {
         const tbody = document.getElementById('table-body');
         if (!tbody) return;
-
-        if (!data || data.length === 0) {
-            tbody.innerHTML = `
-                <tr>
-                    <td colspan="10" class="empty-state">
-                        <i class="fas fa-inbox fa-3x"></i>
-                        <p style="margin-top: 15px;">لا توجد بيانات</p>
-                    </td>
-                </tr>
-            `;
+        
+        if (data.length === 0) {
+            this.showEmptyTable();
             return;
         }
 
-        data.sort((a, b) => (b.timestamp || b.timestampISO || 0) - (a.timestamp || a.timestampISO || 0));
-        tbody.innerHTML = '';
-
-        data.forEach((item, idx) => {
-            const date = item.timestampISO ? 
-                new Date(item.timestampISO).toLocaleString('ar-EG') : 
-                item.timestamp ? new Date(item.timestamp).toLocaleString('ar-EG') : '-';
-
-            const ipDisplay = item.ip || item.clientIP || 'غير معروف';
-            const ipHash = item.ipHash ? item.ipHash.substring(0, 12) + '...' : '-';
-            
-            const q1Badge = this.getVoteBadge(item.votes?.q1);
-            const q2Badge = this.getVoteBadge(item.votes?.q2);
-            const q3Badge = this.getVoteBadge(item.votes?.q3);
-
-            // 🎬🎤 الميديا - يعمل من Firebase و R2!
-            const mediaHtml = this.renderPlayableMedia(item);
-
-            const statusHtml = this.getStatusBadge(item.status);
-            const actionHtml = this.renderActionButtons(item);
-
-            const tr = document.createElement('tr');
-            tr.innerHTML = `
-                <td><strong>${item.index || idx + 1}</strong></td>
-                <td style="white-space: nowrap; font-size: 13px;">${date}</td>
-                <td><span class="ip-badge">${ipDisplay}</span></td>
-                <td><span class="ip-hash">${ipHash}</span></td>
-                <td>${q1Badge}</td>
-                <td>${q2Badge}</td>
-                <td>${q3Badge}</td>
-                <td>${mediaHtml}</td>
-                <td>${statusHtml}</td>
-                <td>${actionHtml}</td>
-            `;
-
-            tbody.appendChild(tr);
+        tbody.innerHTML = data.map((item, index) => `
+            <tr data-id="${item.id}" data-status="${item.status}">
+                <td>${index + 1}</td>
+                <td>${new Date(item.timestampISO).toLocaleString('ar-EG')}</td>
+                <td><span class="ip-badge">${item.ip}</span></td>
+                <td><span class="ip-hash">${item.ipHash}</span></td>
+                <td>${this.renderVoteBadge(item.votes?.q1)}</td>
+                <td>${this.renderVoteBadge(item.votes?.q2)}</td>
+                <td>${this.renderVoteBadge(item.votes?.q3)}</td>
+                <td>${this.renderMediaPreview(item)}</td>
+                <td>${this.renderStatusBadge(item.status)}</td>
+                <td>${this.renderActionButtons(item)}</td>
+            </tr>
+        `).join('');
+        
+        // Add click handlers for media preview
+        tbody.querySelectorAll('.media-preview-clickable').forEach(el => {
+            el.addEventListener('click', (e) => {
+                e.stopPropagation();
+                const id = el.dataset.id;
+                const type = el.dataset.type;
+                admin.openMediaModal(id, type);
+            });
         });
     },
-
-    getVoteBadge(value) {
-        if (!value) return '<span style="color:#666">-</span>';
-        
-        const isPositive = ['satisfied', 'yes', 'youth', 'Very Satisfied', 'Yes', 'New Youth'].includes(value);
-        const labels = {
-            satisfied: '✅ راضي',
-            not_satisfied: '❌ غير راضي',
-            yes: '✅ أؤيد',
-            no: '❌ لا أؤيد',
-            youth: '🆕 شباب جديد',
-            current: '🏛️ الحالية',
-            'Very Satisfied': '✅ راضي جداً',
-            'Not Satisfied': '❌ غير راضي',
-            'Yes': '✅ نعم',
-            'No': '❌ لا',
-            'New Youth': '🆕 شباب جدد',
-            'Current Management': '🏛️ الإدارة الحالية'
-        };
-        
-        return `<span class="vote-badge ${isPositive ? 'positive' : 'negative'}">${labels[value] || value}</span>`;
+    
+    showEmptyTable() {
+        const tbody = document.getElementById('table-body');
+        if (tbody) {
+            tbody.innerHTML = `
+                <tr>
+                    <td colspan="10" class="empty-state">
+                        <i class="fas fa-inbox"></i>
+                        <h3>لا توجد بيانات حالياً</h3>
+                        <p>سيظهر هنا التصويتات والمساهمات عند استقبالها</p>
+                    </td>
+                </tr>
+            `;
+        }
     },
-
-    // 🎬🎤 تشغيل الميديا الفعلي من R2!
-    renderPlayableMedia(item) {
-        if (!item.mediaUrl && !item.mediaType && !item.mediaId) {
-            return '<span class="no-media" style="color:#555;font-style:italic;">-</span>';
-        }
-
-        // رابط الميديا - من R2 مباشرة!
-        const mediaSrc = item.mediaUrl || 
-                         (item.mediaId ? `${CONFIG.R2_BASE_URL}/media/${item.mediaId}` : null);
+    
+    renderVoteBadge(value) {
+        if (!value) return '<span class="vote-badge">-</span>';
         
-        if (!mediaSrc) {
-            return '<span class="no-media" style="color:#555;font-style:italic;">-</span>';
-        }
-
-        const mediaType = item.mediaType || 
-                          (mediaSrc.includes('.mp4') || mediaSrc.includes('.webm') ? 'video' : 'audio');
+        const isPositive = ['Very Satisfied', 'Yes', 'New Youth', 'satisfied', 'yes', 'youth']
+                           .some(v => value.toLowerCase().includes(v.toLowerCase()));
         
-        const typeIcon = mediaType === 'video' ? 'fa-video' : 'fa-microphone';
-        const typeName = mediaType === 'video' ? 'فيديو' : 'صوتي';
-        const typeColor = mediaType === 'video' ? '#8b5cf6' : '#06b6d4';
-
+        const displayValue = {
+            'Very Satisfied': 'رضا تام',
+            'Not Satisfied': 'غير راضٍ',
+            'Yes': 'موافق',
+            'No': 'غير موافق',
+            'New Youth': 'شباب جدد',
+            'Current Management': 'الإدارة الحالية'
+        }[value] || value;
+        
+        return `<span class="vote-badge ${isPositive ? 'positive' : 'negative'}">${displayValue}</span>`;
+    },
+    
+    renderMediaPreview(item) {
+        if (!item.hasPlayableMedia || !item.mediaType) {
+            return '<span class="no-media">لا يوجد</span>';
+        }
+        
+        const icon = item.mediaType === 'video' ? 'fa-video' : 'fa-microphone';
+        const label = item.mediaType === 'video' ? 'فيديو' : 'صوت';
+        const size = item.mediaSize ? `${(item.mediaSize/1024).toFixed(0)}KB` : '';
+        
         return `
-            <div class="media-container" onclick='admin.openMediaModal("${item.id || item.mediaId}", "${mediaType}")'>
-                ${mediaType === 'video' ? `
-                    <!-- مشغل فيديو مصغر -->
-                    <div class="video-thumbnail">
-                        <video src="${mediaSrc}" 
-                               preload="metadata" 
-                               muted
-                               style="max-width:160px; max-height:90px; border-radius:8px; cursor:pointer;"
-                               @loadedmetadata="this.style.opacity=1"
-                               onerror="this.parentElement.innerHTML='<div class=\\'media-fallback\\' style=\\'padding:15px;text-align:center;color:${typeColor}\\'><i class=\\'fas ${typeIcon} fa-2x\\'></i><p style=\\'font-size:11px;margin-top:5px\\'>${typeName}</p></div>'">
-                            <div class="play-overlay">
-                                <i class="fas fa-play-circle"></i>
-                            </div>
-                        </video>
-                    </div>
-                ` : `
-                    <!-- مشغل صوتي -->
-                    <audio src="${mediaSrc}" 
-                           preload="metadata" 
-                           controls
-                           style="width:150px;height:36px;"
-                           onerror="this.outerHTML='<div style=\\'padding:8px;color:${typeColor};font-size:12px\\'><i class=\\'fas ${typeIcon}\\'></i> ${typeName}</div>'">
-                    </audio>
-                `}
-                
-                <div class="media-info">
-                    <i class="fas ${typeIcon}" style="color:${typeColor}"></i>
-                    <span>${typeName}</span>
-                </div>
+            <div class="media-preview media-preview-clickable" 
+                 data-id="${item.id}" 
+                 data-type="${item.mediaType}"
+                 title="اضغط لتشغيل">
+                <i class="fas ${icon}"></i>
+                <small>${label} ${size}</small>
             </div>
-
-            <style>
-                .media-container { cursor: pointer; text-align: center; }
-                .media-container:hover .play-overlay { opacity: 1; }
-                .play-overlay {
-                    position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);
-                    background:rgba(0,0,0,0.7);color:white;border-radius:50%;
-                    width:35px;height:35px;display:flex;align-items:center;
-                    justify-content:center;font-size:18px;opacity:0;transition:0.2s;
-                }
-                .video-thumbnail { position:relative;display:inline-block;border-radius:8px;overflow:hidden; }
-                .media-info { font-size:11px;margin-top:4px;color:#888; }
-                .media-info i { margin-right:4px; }
-            </style>
         `;
     },
-
-    getStatusBadge(status) {
-        const config = {
-            pending: { label: '⏳ قيد المراجعة', class: 'status-pending' },
-            approved: { label: '✅ مقبول', class: 'status-approved' },
-            accepted: { label: '✅ مقبول', class: 'status-approved' },
-            rejected: { label: '❌ مرفوض', class: 'status-rejected' }
+    
+    renderStatusBadge(status) {
+        const statusMap = {
+            'pending': { class: 'status-pending', text: '⏳ قيد المراجعة' },
+            'approved': { class: 'status-approved', text: '✅ مقبول' },
+            'accepted': { class: 'status-approved', text: '✅ مقبول' },
+            'rejected': { class: 'status-rejected', text: '❌ مرفوض' }
         };
         
-        const s = config[status] || config.pending;
-        return `<span class="status-badge ${s.class}">${s.label}</span>`;
+        const config = statusMap[status] || { class: 'status-pending', text: status || 'غير معروف' };
+        return `<span class="status-badge ${config.class}">${config.text}</span>`;
     },
-
+    
     renderActionButtons(item) {
         const id = JSON.stringify(item.id);
-        const ip = JSON.stringify(item.ip || item.clientIP || '');
-        
+        const ip = JSON.stringify(item.ip);
         let buttons = '';
         
-        // أزرار القبول/رفض للمحتوى قيد المراجعة
-        if ((item.status === 'pending') && (item.mediaUrl || item.mediaType)) {
+        // Accept Button
+        if (item.status !== 'approved' && item.status !== 'accepted') {
             buttons += `
                 <button class="action-btn approve" onclick='event.stopPropagation(); admin.updateStatus(${id}, "accepted")' title="✅ قبول ونشر">
-                    <i class="fas fa-check"></i> قبول
-                </button>
-                <button class="action-btn reject" onclick='event.stopPropagation(); admin.updateStatus(${id}, "rejected")' title="❌ رفض">
-                    <i class="fas fa-times"></i> رفض
-                </button>
-            `;
-        } else if (item.mediaUrl || item.mediaType) {
-            buttons += `
-                <button class="action-btn approve" onclick='event.stopPropagation(); admin.updateStatus(${id}, "approved")' title="تغيير الحالة">
-                    <i class="fas fa-edit"></i>
+                    <i class="fas fa-check"></i>
                 </button>
             `;
         }
         
-        // زر الحذف
+        // Reject Button
+        if (item.status !== 'rejected') {
+            buttons += `
+                <button class="action-btn reject" onclick='event.stopPropagation(); admin.updateStatus(${id}, "rejected")' title="❌ رفض">
+                    <i class="fas fa-times"></i>
+                </button>
+            `;
+        }
+        
+        // Delete Button
         buttons += `
             <button class="action-btn delete" onclick='event.stopPropagation(); admin.deleteEntry(${id})' title="🗑️ حذف">
                 <i class="fas fa-trash"></i>
             </button>
         `;
         
-        // زر حظر IP
-        if (item.ip || item.clientIP) {
+        // Block IP Button
+        if (item.ip && item.ip !== '-') {
             buttons += `
                 <button class="action-btn block" onclick='event.stopPropagation(); admin.blockIp(${ip})' title="🚫 حظر IP">
                     <i class="fas fa-ban"></i>
@@ -518,17 +367,15 @@ const admin = {
     // ==================== Modal كبير لتشغيل الميديو ====================
     
     openMediaModal(submissionId, mediaType) {
-        const item = this.allData.find(s => s.id === submissionId || s.mediaId === submissionId);
+        const item = this.allData.find(s => s.id === submissionId);
         if (!item) return;
 
         const modal = document.getElementById('media-modal');
         const container = document.getElementById('modal-media-container');
         const info = document.getElementById('modal-info');
 
-        // رابط الميديا من R2 - يعمل 100%!
-        const mediaSrc = item.mediaUrl || 
-                         (item.mediaId ? `${CONFIG.R2_BASE_URL}/media/${item.mediaId}` : 
-                          `${CONFIG.WORKER_URL}/api/media/${submissionId}`);
+        // رابط الميديا من R2
+        const mediaSrc = item.mediaUrl || `${CONFIG.R2_BASE_URL}/media/${submissionId}`;
         
         const isVideo = mediaType === 'video';
         const typeLabel = isVideo ? 'فيديو' : 'تسجيل صوتي';
@@ -536,7 +383,6 @@ const admin = {
         const typeIcon = isVideo ? 'fa-video' : 'fa-microphone';
 
         container.innerHTML = isVideo ? `
-            <!-- مشغل فيديو كامل -->
             <div style="background:#000;border-radius:16px;overflow:hidden;">
                 <video src="${mediaSrc}" 
                        controls 
@@ -548,7 +394,6 @@ const admin = {
                 </video>
             </div>
         ` : `
-            <!-- مشغل صوتي كامل مع تصميم جميل -->
             <div style="background:linear-gradient(135deg,${typeColor}22,transparent);border-radius:16px;padding:30px;text-align:center;">
                 <i class="fas ${typeIcon} fa-4x" style="color:${typeColor};margin-bottom:20px;"></i>
                 <h3 style="color:white;margin-bottom:20px;">🎤 ${typeLabel} مسجل</h3>
@@ -570,11 +415,11 @@ const admin = {
                 </div>
                 <div style="background:rgba(255,255,255,0.05);padding:10px 20px;border-radius:10px;">
                     <i class="fas fa-calendar" style="color:#f4c430"></i>
-                    <strong> التاريخ:</strong> ${new Date(item.timestampISO || item.timestamp).toLocaleString('ar-EG')}
+                    <strong> التاريخ:</strong> ${new Date(item.timestampISO).toLocaleString('ar-EG')}
                 </div>
                 <div style="background:rgba(255,255,255,0.05);padding:10px 20px;border-radius:10px;">
                     <i class="fas fa-network-wired" style="color:#60a5fa"></i>
-                    <strong> IP:</strong> ${item.ip || item.clientIP || '-'}
+                    <strong> IP:</strong> ${item.ip || '-'}
                 </div>
                 <div style="background:rgba(255,255,255,0.05);padding:10px 20px;border-radius:10px;">
                     <i class="fas fa-id-card" style="color:#a78bfa"></i>
@@ -605,7 +450,54 @@ const admin = {
         modal.classList.add('active');
     },
 
-    // ==================== إجراءات الأدمن (Firebase + Worker) ====================
+    // ==================== البحث والفلترة ====================
+    
+    searchTable() {
+        const query = document.getElementById('search-box')?.value.toLowerCase();
+        if (!query) {
+            this.filteredData = [...this.allData];
+        } else {
+            this.filteredData = this.allData.filter(item => 
+                (item.ip || '').toLowerCase().includes(query) ||
+                (item.timestampISO || '').includes(query) ||
+                JSON.stringify(item.votes || {}).toLowerCase().includes(query)
+            );
+        }
+        this.renderTable(this.filteredData);
+    },
+    
+    filterBy(filter, btn) {
+        this.currentFilter = filter;
+        
+        // Update button states
+        document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+        if (btn) btn.classList.add('active');
+        
+        // Filter data
+        switch(filter) {
+            case 'all':
+                this.filteredData = [...this.allData];
+                break;
+            case 'pending':
+                this.filteredData = this.allData.filter(s => s.status === 'pending');
+                break;
+            case 'approved':
+                this.filteredData = this.allData.filter(s => s.status === 'approved' || s.status === 'accepted');
+                break;
+            case 'rejected':
+                this.filteredData = this.allData.filter(s => s.status === 'rejected');
+                break;
+            case 'has-media':
+                this.filteredData = this.allData.filter(s => s.hasPlayableMedia);
+                break;
+            default:
+                this.filteredData = [...this.allData];
+        }
+        
+        this.renderTable(this.filteredData);
+    },
+
+    // ==================== إجراءات الأدمن ====================
     
     async updateStatus(id, newStatus) {
         const statusText = newStatus === 'accepted' || newStatus === 'approved' ? 'قبول ونشر' : 'رفض';
@@ -615,22 +507,25 @@ const admin = {
         try {
             this.showToast(`جاري ${statusText}...`);
             
-            // Try Firebase first
-            if (this.db) {
-                try {
-                    const { ref, update } = await import('https://www.gstatic.com/firebasejs/10.8.0/firebase-database.js');
-                    const submissionRef = ref(this.db, `survey/submissions/${id}`);
-                    await update(submissionRef, { 
+            // Try Firebase REST API first
+            try {
+                const updateUrl = `${CONFIG.FIREBASE_DB_URL}/${CONFIG.FIREBASE_PATH}/${id}.json`;
+                const response = await fetch(updateUrl, {
+                    method: 'PATCH',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ 
                         status: newStatus === 'accepted' ? 'approved' : newStatus,
                         updatedAt: new Date().toISOString()
-                    });
-                    
-                    this.showToast(`✅ تم ${statusText} بنجاح! (Firebase)`);
+                    })
+                });
+                
+                if (response.ok) {
+                    this.showToast(`✅ تم ${statusText} بنجاح!`);
                     setTimeout(() => this.fetchData(), 500);
                     return;
-                } catch (firebaseError) {
-                    console.warn('⚠️ Firebase update failed, trying Worker:', firebaseError);
                 }
+            } catch (firebaseError) {
+                console.warn('⚠️ Firebase update failed, trying Worker:', firebaseError);
             }
             
             // Fallback to Worker
@@ -646,7 +541,7 @@ const admin = {
             const result = await res.json();
 
             if (result.success) {
-                this.showToast(`✅ تم ${statusText} بنجاح! (Worker)`);
+                this.showToast(`✅ تم ${statusText} بنجاح!`);
                 setTimeout(() => this.fetchData(), 500);
             } else {
                 this.showToast(result.error || 'فشل العملية', 'error');
@@ -662,19 +557,18 @@ const admin = {
         try {
             this.showToast('جاري الحذف...');
             
-            // Try Firebase first
-            if (this.db) {
-                try {
-                    const { ref, remove } = await import('https://www.gstatic.com/firebasejs/10.8.0/firebase-database.js');
-                    const submissionRef = ref(this.db, `survey/submissions/${id}`);
-                    await remove(submissionRef);
-                    
-                    this.showToast('🗑️ تم الحذف بنجاح! (Firebase)');
+            // Try Firebase REST first
+            try {
+                const deleteUrl = `${CONFIG.FIREBASE_DB_URL}/${CONFIG.FIREBASE_PATH}/${id}.json`;
+                const response = await fetch(deleteUrl, { method: 'DELETE' });
+                
+                if (response.ok) {
+                    this.showToast('🗑️ تم الحذف بنجاح!');
                     setTimeout(() => this.fetchData(), 500);
                     return;
-                } catch (firebaseError) {
-                    console.warn('⚠️ Firebase delete failed, trying Worker:', firebaseError);
                 }
+            } catch (firebaseError) {
+                console.warn('⚠️ Firebase delete failed, trying Worker:', firebaseError);
             }
             
             // Fallback to Worker
@@ -733,10 +627,10 @@ const admin = {
     exportCSV() {
         if (!this.filteredData.length) return this.showToast('لا توجد بيانات', 'error');
 
-        const flatData = this.filteredData.map(item => ({
-            '#': item.index,
-            'التاريخ': new Date(item.timestampISO || item.timestamp).toLocaleString('ar-EG'),
-            'IP': item.ip || item.clientIP || '',
+        const flatData = this.filteredData.map((item, index) => ({
+            '#': index + 1,
+            'التاريخ': new Date(item.timestampISO).toLocaleString('ar-EG'),
+            'IP': item.ip || '',
             'Q1_رضا': item.votes?.q1 || '',
             'Q2_تأييد': item.votes?.q2 || '',
             'Q3_اختيار': item.votes?.q3 || '',
@@ -781,14 +675,14 @@ function handleMediaError(element, type) {
         <div style="padding:40px;text-align:center;color:#ef4444;">
             <i class="fas fa-exclamation-triangle fa-3x"></i>
             <p style="margin-top:15px;">خطأ في تشغيل ${type}</p>
-            <p style="font-size:12px;color:#888;margin-top:5px;">قد يكون الملف تالف أو غير مدعوم</p>
+            <p style="font-size:12px;color:#888;margin-top:5px;">قد يكون الملف غير موجود في R2</p>
         </div>
     `;
 }
 
 function closeModal(event) {
     if (!event || event.target.id === 'media-modal' || event.target.classList.contains('modal-close')) {
-        document.getElementById('media-modal').classList.remove('active');
+        document.getElementById('media-modal')?.classList.remove('active');
         
         // Stop all media
         document.querySelectorAll('#modal-media-container video, #modal-media-container audio').forEach(el => {
@@ -798,6 +692,8 @@ function closeModal(event) {
     }
 }
 
-// Auto-login
+// Auto-init
 window.admin = admin;
-if (admin.token) admin.fetchData();
+if (admin.token) {
+    admin.fetchData();
+}
