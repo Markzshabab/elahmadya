@@ -53,6 +53,22 @@ function getClientIP(request) {
   return request.headers.get("CF-Connecting-IP") || "0.0.0.0";
 }
 
+function summarizeUserAgent(ua) {
+  if (!ua) return "غير معروف";
+  const device = /iPhone/i.test(ua) ? "iPhone"
+    : /iPad/i.test(ua) ? "iPad"
+    : /Android/i.test(ua) ? "أندرويد"
+    : /Macintosh/i.test(ua) ? "ماك"
+    : /Windows/i.test(ua) ? "ويندوز"
+    : "جهاز غير معروف";
+  const browser = /EdgA|Edge|Edg\//i.test(ua) ? "Edge"
+    : /CriOS|Chrome/i.test(ua) ? "Chrome"
+    : /FxiOS|Firefox/i.test(ua) ? "Firefox"
+    : /Version\/.*Safari/i.test(ua) ? "Safari"
+    : "متصفح آخر";
+  return `${device} · ${browser}`;
+}
+
 function getIPLast4(ip) {
   // Works for IPv4 (last octet+) and IPv6 (last hextet) — purely cosmetic,
   // shown to the voter so they can visually confirm "this was me",
@@ -162,7 +178,8 @@ async function handleVote(request, env) {
   }
 
   const ts = Date.now();
-  const voteRecord = { q1, q2, q3, ipHash, ipLast4, ts, immutable: true };
+  const uaSummary = summarizeUserAgent(request.headers.get("User-Agent") || "");
+  const voteRecord = { q1, q2, q3, ipHash, ipLast4, uaSummary, ts, immutable: true };
 
   const pushed = await fbPush(env, "votes", voteRecord);
   await fbSet(env, `votes_index/${ipHash}`, { voteId: pushed.name, ts });
@@ -400,6 +417,28 @@ async function handleAdminVoteDelete(request, env) {
   return json({ success: true, message: "تم حذف الصوت المزوّر ورُصدت الإحصائيات" });
 }
 
+async function handleAdminVoteReset(request, env) {
+  if (!(await requireAdmin(request, env))) return json({ success: false, message: "غير مصرح" }, 401);
+  const { voteId } = await request.json();
+  const vote = await fbGet(env, `votes/${voteId}`);
+  if (!vote) return json({ success: false, message: "الصوت غير موجود" }, 404);
+
+  // Archive the original vote for history instead of deleting it outright
+  await fbSet(env, `votes_history/${voteId}`, { ...vote, resetAt: Date.now() });
+  await fbSet(env, `votes/${voteId}`, null);
+  await fbSet(env, `votes_index/${vote.ipHash}`, null);
+
+  const summary = (await fbGet(env, "statistics/summary")) || {};
+  summary.total = Math.max(0, (summary.total || 1) - 1);
+  if (summary.q1) summary.q1[vote.q1] = Math.max(0, (summary.q1[vote.q1] || 1) - 1);
+  if (summary.q2) summary.q2[vote.q2] = Math.max(0, (summary.q2[vote.q2] || 1) - 1);
+  if (summary.q3) summary.q3[vote.q3] = Math.max(0, (summary.q3[vote.q3] || 1) - 1);
+  await fbSet(env, "statistics/summary", summary);
+
+  await fbPush(env, "logs", { action: "vote_reset_allow_revote", voteId, ipHash: vote.ipHash, ts: Date.now() });
+  return json({ success: true, message: "تمت إعادة تعيين الصوت — يمكن لهذا الشخص التصويت من جديد" });
+}
+
 async function handleAdminBan(request, env, ban) {
   if (!(await requireAdmin(request, env))) return json({ success: false, message: "غير مصرح" }, 401);
   const { ipHash, reason } = await request.json();
@@ -439,6 +478,7 @@ export default {
       if (url.pathname === "/api/admin/media/reject" && request.method === "POST") return await handleAdminMediaAction(request, env, "reject");
       if (url.pathname === "/api/admin/media/delete" && request.method === "POST") return await handleAdminMediaAction(request, env, "delete");
       if (url.pathname === "/api/admin/vote/delete" && request.method === "POST") return await handleAdminVoteDelete(request, env);
+      if (url.pathname === "/api/admin/vote/reset" && request.method === "POST") return await handleAdminVoteReset(request, env);
       if (url.pathname === "/api/admin/ban" && request.method === "POST") return await handleAdminBan(request, env, true);
       if (url.pathname === "/api/admin/unban" && request.method === "POST") return await handleAdminBan(request, env, false);
       return json({ success: false, message: "Not found" }, 404);

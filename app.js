@@ -203,7 +203,7 @@ function initVoting() {
   const form = $("#surveyForm");
   if (!form) return;
   const votedBefore = localStorage.getItem("ahmadiya_voted") === "1";
-  if (votedBefore) lockVoteForm(localStorage.getItem("ahmadiya_ip_last4") || "****");
+  if (votedBefore) lockVoteForm();
 
   form.addEventListener("submit", async (e) => {
     e.preventDefault();
@@ -233,6 +233,12 @@ function initVoting() {
       const data = await res.json();
 
       if (!res.ok || !data.success) {
+        if (res.status === 409) {
+          // Already voted from this network before (e.g. localStorage was cleared)
+          localStorage.setItem("ahmadiya_voted", "1");
+          lockVoteForm();
+          return;
+        }
         toast(data.message || "تعذّر إرسال التصويت، حاول مرة أخرى");
         submitBtn.disabled = false;
         submitBtn.innerHTML = '<i class="fa-solid fa-paper-plane"></i> إرسال التصويت';
@@ -240,8 +246,7 @@ function initVoting() {
       }
 
       localStorage.setItem("ahmadiya_voted", "1");
-      localStorage.setItem("ahmadiya_ip_last4", data.ipLast4 || "****");
-      lockVoteForm(data.ipLast4 || "****");
+      lockVoteForm();
       toast("تم تسجيل تصويتك بنجاح، شكرًا لمشاركتك");
       confettiBurst();
     } catch (err) {
@@ -252,16 +257,22 @@ function initVoting() {
   });
 }
 
-function lockVoteForm(ipLast4) {
+function lockVoteForm() {
   const form = $("#surveyForm");
   if (!form) return;
   $$("input", form).forEach((i) => (i.disabled = true));
   const submitBtn = form.querySelector("#submitVoteBtn");
   if (submitBtn) submitBtn.hidden = true;
+  form.hidden = true;
+
   const notice = $("#alreadyVotedNotice");
-  if (notice) notice.hidden = false;
-  const ipMasked = $("#ipMasked");
-  if (ipMasked) ipMasked.textContent = `**.**.**.${ipLast4}`;
+  if (notice) {
+    notice.hidden = false;
+    // Restart entrance + checkmark-draw animation every time it's shown
+    notice.classList.remove("play");
+    void notice.offsetWidth; // force reflow to restart CSS animation
+    notice.classList.add("play");
+  }
 }
 
 function confettiBurst() {
@@ -464,38 +475,88 @@ function playWallItem(idx) {
    PWA INSTALL — real standalone app install
    ============================================================ */
 let deferredInstallPrompt = null;
+let installPromptUsed = false;
+
+function detectPlatform() {
+  const ua = navigator.userAgent || "";
+  const isIOS = /iPad|iPhone|iPod/.test(ua) || (ua.includes("Macintosh") && navigator.maxTouchPoints > 1);
+  const isSafari = /^((?!chrome|android|crios|fxios).)*safari/i.test(ua);
+  const isAndroid = /Android/.test(ua);
+  return { isIOS, isSafari, isAndroid };
+}
+
+function showManualInstallInstructions() {
+  const { isIOS, isAndroid } = detectPlatform();
+  let msg;
+  if (isIOS) {
+    msg = "لتثبيت التطبيق: اضغط زر المشاركة ⬆️ في متصفح Safari، ثم اختر «إضافة إلى الشاشة الرئيسية»";
+  } else if (isAndroid) {
+    msg = "لتثبيت التطبيق: افتح قائمة المتصفح (⋮) واختر «تثبيت التطبيق» أو «إضافة إلى الشاشة الرئيسية»";
+  } else {
+    msg = "لتثبيت التطبيق: افتح قائمة المتصفح واختر «تثبيت» أو «إضافة إلى الشاشة الرئيسية»";
+  }
+  toast(msg, 5500);
+}
 
 function initInstallBanner() {
   const isStandalone = window.matchMedia("(display-mode: standalone)").matches
     || window.navigator.standalone === true;
   if (isStandalone) return;
 
+  const banner = $("#installBanner");
+  const { isIOS } = detectPlatform();
+
   window.addEventListener("beforeinstallprompt", (e) => {
     e.preventDefault();
     deferredInstallPrompt = e;
-    if (!sessionStorage.getItem("ahmadiya_install_dismissed")) {
-      const banner = $("#installBanner");
-      if (banner) banner.hidden = false;
+    if (banner && !sessionStorage.getItem("ahmadiya_install_dismissed")) {
+      banner.hidden = false;
+      banner.classList.add("show");
     }
   });
+
+  // Browsers that never fire beforeinstallprompt (iOS Safari, some in-app
+  // browsers) would otherwise never show the banner at all. Show it anyway
+  // after a short delay so tapping it always gives the person useful steps.
+  if (isIOS && banner && !sessionStorage.getItem("ahmadiya_install_dismissed")) {
+    setTimeout(() => {
+      if (!banner.hidden) return;
+      banner.hidden = false;
+      banner.classList.add("show");
+    }, 3500);
+  }
 
   const installBtn = $("#installBtn");
   if (installBtn) {
     installBtn.addEventListener("click", async () => {
-      if (!deferredInstallPrompt) return;
-      deferredInstallPrompt.prompt();
-      const choice = await deferredInstallPrompt.userChoice;
-      if (choice.outcome === "accepted") toast("تم تثبيت التطبيق بنجاح");
-      const banner = $("#installBanner");
-      if (banner) banner.hidden = true;
+      // Always respond — never fail silently
+      if (deferredInstallPrompt && !installPromptUsed) {
+        installPromptUsed = true;
+        try {
+          deferredInstallPrompt.prompt();
+          const choice = await deferredInstallPrompt.userChoice;
+          if (choice.outcome === "accepted") {
+            toast("تم تثبيت التطبيق بنجاح");
+            if (banner) banner.hidden = true;
+          } else {
+            toast("تم إلغاء التثبيت — يمكنك المحاولة مرة أخرى في أي وقت");
+          }
+        } catch (err) {
+          showManualInstallInstructions();
+        } finally {
+          deferredInstallPrompt = null;
+        }
+      } else {
+        // No native prompt available on this browser/platform — guide manually
+        showManualInstallInstructions();
+      }
     });
   }
 
   const dismissInstall = $("#dismissInstall");
   if (dismissInstall) {
     dismissInstall.addEventListener("click", () => {
-      const banner = $("#installBanner");
-      if (banner) banner.hidden = true;
+      if (banner) { banner.classList.remove("show"); banner.hidden = true; }
       sessionStorage.setItem("ahmadiya_install_dismissed", "1");
     });
   }

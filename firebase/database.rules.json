@@ -16,6 +16,11 @@
       ".write": false
     },
 
+    "votes_history": {
+      ".read": "auth != null",
+      ".write": false
+    },
+
     "statistics": {
       "summary": { ".read": true, ".write": false },
       "daily": { ".read": "auth != null", ".write": false }

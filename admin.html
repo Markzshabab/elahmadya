@@ -25,6 +25,11 @@
   .clock{font-family:monospace;color:var(--text-1);font-size:.8rem;text-align:center;margin-top:8px;}
   .admin-panel{display:none;}
   .admin-panel.active{display:block;}
+  .voter-hash{font-family:monospace;font-size:.72rem;color:var(--text-1);cursor:pointer;display:inline-flex;align-items:center;gap:6px;}
+  .voter-hash:hover{color:var(--emerald);}
+  .voter-device{font-size:.72rem;color:var(--text-1);}
+  .btn-reset-vote{background:rgba(232,184,84,.16)!important;color:var(--gold)!important;border-color:var(--gold)!important;}
+  .btn-danger-vote{background:rgba(255,84,112,.14)!important;color:var(--danger)!important;border-color:var(--danger)!important;}
 </style>
 </head>
 <body>
@@ -60,10 +65,11 @@
   </section>
 
   <section id="panel-votes" class="admin-panel">
-    <h3>سجل الأصوات (آخر 4 أرقام من IP فقط)</h3>
-    <input type="text" id="voteSearch" placeholder="بحث برقم IP الأخير..." style="padding:10px;border-radius:8px;margin-bottom:12px;width:100%;background:var(--glass);border:1px solid var(--glass-border);color:#fff;">
+    <h3>سجل الأصوات</h3>
+    <p class="section-sub">لا يتم تخزين اسم أو رقم هاتف — فقط بصمة جهاز/متصفح مجهّلة (ipHash) لأغراض النزاهة والحظر وإعادة التصويت. اضغط على الرمز لنسخه.</p>
+    <input type="text" id="voteSearch" placeholder="بحث برقم IP الأخير أو ipHash..." style="padding:10px;border-radius:8px;margin-bottom:12px;width:100%;background:var(--glass);border:1px solid var(--glass-border);color:#fff;">
     <table>
-      <thead><tr><th>س1</th><th>س2</th><th>س3</th><th>IP (آخر 4)</th><th>التاريخ</th><th>إجراء</th></tr></thead>
+      <thead><tr><th>س1</th><th>س2</th><th>س3</th><th>الجهاز</th><th>معرّف المصوّت (ipHash)</th><th>IP (آخر 4)</th><th>التاريخ</th><th>إجراءات</th></tr></thead>
       <tbody id="votesTableBody"></tbody>
     </table>
   </section>

@@ -119,8 +119,12 @@ function loadVotes() {
     const data = snap.val() || {};
     renderVotes(data);
     $("#voteSearch").oninput = (e) => {
-      const q = e.target.value.trim();
-      const filtered = Object.fromEntries(Object.entries(data).filter(([, v]) => v.ipLast4.includes(q)));
+      const q = e.target.value.trim().toLowerCase();
+      const filtered = Object.fromEntries(
+        Object.entries(data).filter(([, v]) =>
+          v.ipLast4.includes(q) || (v.ipHash || "").toLowerCase().includes(q)
+        )
+      );
       renderVotes(filtered);
     };
   });
@@ -134,13 +138,50 @@ function renderVotes(data) {
     .slice(0, 300)
     .forEach(([id, v]) => {
       const tr = document.createElement("tr");
+      const shortHash = v.ipHash ? v.ipHash.slice(0, 10) + "…" : "-";
       tr.innerHTML = `
         <td>${q1Label(v.q1)}</td><td>${q2Label(v.q2)}</td><td>${q3Label(v.q3)}</td>
+        <td class="voter-device">${v.uaSummary || "غير معروف"}</td>
+        <td><span class="voter-hash" data-copy-hash="${v.ipHash || ""}" title="اضغط للنسخ — استخدمه للحظر أو للتأكد أن هذا نفس الشخص في أماكن أخرى">
+          <i class="fa-regular fa-copy"></i> ${shortHash}
+        </span></td>
         <td>**.**.**.${v.ipLast4}</td>
         <td>${new Date(v.ts).toLocaleString("ar-EG")}</td>
-        <td><button class="btn-ghost" data-vote-del="${id}">حذف (تزوير مؤكد)</button></td>`;
+        <td class="row-actions">
+          <button class="btn-ghost btn-reset-vote" data-vote-reset="${id}" title="يمسح صوته الحالي ويسمح له بالتصويت من جديد">
+            <i class="fa-solid fa-rotate"></i> السماح بالتصويت مجددًا
+          </button>
+          <button class="btn-ghost btn-danger-vote" data-vote-del="${id}" title="حذف نهائي — فقط في حالة تصويت مزوّر مؤكد">
+            <i class="fa-solid fa-trash"></i> حذف (تزوير مؤكد)
+          </button>
+        </td>`;
       tbody.appendChild(tr);
     });
+
+  tbody.querySelectorAll("[data-copy-hash]").forEach((el) => {
+    el.addEventListener("click", async () => {
+      const hash = el.dataset.copyHash;
+      if (!hash) return;
+      try {
+        await navigator.clipboard.writeText(hash);
+        toast("تم نسخ معرّف المصوّت — يمكنك استخدامه في تبويب الحظر");
+      } catch {
+        toast(hash);
+      }
+    });
+  });
+
+  tbody.querySelectorAll("[data-vote-reset]").forEach((btn) => {
+    btn.addEventListener("click", async () => {
+      if (!confirm("السماح لهذا الشخص بالتصويت من جديد؟ سيُحذف صوته الحالي من النتائج ويُحفظ في الأرشيف.")) return;
+      const res = await fetch(`${API_BASE}/api/admin/vote/reset`, {
+        method: "POST", headers: authHeaders(), body: JSON.stringify({ voteId: btn.dataset.voteReset }),
+      });
+      const data = await res.json();
+      toast(data.message || "تمت إعادة التعيين");
+    });
+  });
+
   tbody.querySelectorAll("[data-vote-del]").forEach((btn) => {
     btn.addEventListener("click", async () => {
       if (!confirm("حذف هذا الصوت نهائيًا؟ يُستخدم فقط في حالة تصويت مزوّر مؤكد.")) return;

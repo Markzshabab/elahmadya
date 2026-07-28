@@ -10,9 +10,9 @@
 <meta property="og:type" content="website">
 <meta property="og:title" content="استبيان مركز شباب الأحمدية">
 <meta property="og:description" content="من أجل بلدنا الأحمدية أردنا معرفة رأيك في هذا الاستبيان">
-<meta property="og:image" content="https://elahmadya.pages.dev/assets/icons/icon-512.png">
-<meta property="og:image:width" content="512">
-<meta property="og:image:height" content="512">
+<meta property="og:image" content="https://elahmadya.pages.dev/assets/share-cover.jpg">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
 <meta property="og:url" content="https://elahmadya.pages.dev/">
 <meta property="og:site_name" content="استبيان مركز شباب الأحمدية">
 <meta property="og:locale" content="ar_EG">
@@ -21,7 +21,7 @@
 <meta name="twitter:card" content="summary_large_image">
 <meta name="twitter:title" content="استبيان مركز شباب الأحمدية">
 <meta name="twitter:description" content="من أجل بلدنا الأحمدية أردنا معرفة رأيك في هذا الاستبيان">
-<meta name="twitter:image" content="https://elahmadya.pages.dev/assets/icons/icon-512.png">
+<meta name="twitter:image" content="https://elahmadya.pages.dev/assets/share-cover.jpg">
 
 <title>استبيان مركز شباب الأحمدية</title>
 
@@ -103,13 +103,15 @@
     <h1 id="surveyTitle" class="section-title">استبيان أهل الأحمدية</h1>
     <p class="section-sub">صوتك يهم. اختر إجابتك بكل حرية وأمان — تصويت واحد فقط لكل شخص.</p>
 
-    <div id="alreadyVotedNotice" class="notice-card" hidden>
-      <i class="fa-solid fa-circle-check"></i>
-      <div>
-        <strong>تم تسجيل تصويتك بالفعل</strong>
-        <p>لا يمكن تعديل التصويت بعد إرساله للحفاظ على نزاهة النتائج.</p>
-        <p class="ip-tag">تم التسجيل من عنوان IP: <span id="ipMasked">**.**.**.****</span></p>
+    <div id="alreadyVotedNotice" class="thankyou-card" hidden>
+      <div class="thankyou-badge">
+        <svg viewBox="0 0 52 52" class="thankyou-check">
+          <circle class="thankyou-check-ring" cx="26" cy="26" r="23" fill="none"/>
+          <path class="thankyou-check-mark" fill="none" d="M14 27l7 7 17-17"/>
+        </svg>
       </div>
+      <strong>شكرًا لمشاركتك معنا 🌙</strong>
+      <p>صوتك سجّل بنجاح ونقدّر وقتك. تابع النتائج المباشرة من تبويب "النتائج".</p>
     </div>
 
     <form id="surveyForm" class="survey-form">
