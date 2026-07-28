@@ -1,0 +1,176 @@
+<!DOCTYPE html>
+<html lang="en" dir="ltr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Al Ahmadiya Village Public Survey</title>
+    
+    <!-- SEO & Open Graph -->
+    <meta name="description" content="Share your opinion about the Youth Center management in Al Ahmadiya Village.">
+    <meta property="og:title" content="Al Ahmadiya Village Public Survey">
+    <meta property="og:description" content="Share your opinion about the Youth Center.">
+    <meta property="og:image" content="https://yourdomain.com/assets/og-image.jpg">
+    <meta property="og:url" content="https://yourdomain.com">
+    <meta name="twitter:card" content="summary_large_image">
+    
+    <!-- PWA -->
+    <link rel="manifest" href="manifest.json">
+    <meta name="theme-color" content="#0f2027">
+    <link rel="apple-touch-icon" href="assets/icon-192.png">
+    
+    <!-- Fonts & Icons -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@300;400;600;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <!-- Background Canvas for Particles -->
+    <canvas id="particleCanvas"></canvas>
+
+    <main id="app-container" class="glass-panel">
+        
+        <!-- WELCOME SCREEN -->
+        <section id="s-welcome" class="active-screen">
+            <img src="assets/logo.png" alt="Youth Center Logo" class="logo floating">
+            <h1>Al Ahmadiya Youth Center</h1>
+            <p>Public Performance Survey (2019-2024)</p>
+            <button class="btn-primary" onclick="app.nextScreen('s-info-1')">
+                Continue <i class="fas fa-arrow-right"></i>
+            </button>
+            <button class="btn-icon" id="music-toggle" aria-label="Toggle Music">
+                <i class="fas fa-music"></i>
+            </button>
+        </section>
+
+        <!-- INFO 1: SPORTS -->
+        <section id="s-info-1" class="hidden-screen">
+            <h2><i class="fas fa-futbol"></i> Sports Activities</h2>
+            <ul class="info-list">
+                <li>Promoting sports</li>
+                <li>Creating teams</li>
+                <li>Organizing competitions</li>
+                <li>Improving physical fitness</li>
+            </ul>
+            <button class="btn-primary" onclick="app.nextScreen('s-info-2')">Next</button>
+        </section>
+
+        <!-- INFO 2: CULTURAL -->
+        <section id="s-info-2" class="hidden-screen">
+            <h2><i class="fas fa-book-open"></i> Cultural Activities</h2>
+            <ul class="info-list">
+                <li>Developing cultural awareness</li>
+                <li>Scientific activities</li>
+                <li>Seminars</li>
+                <li>Creative hobbies</li>
+            </ul>
+            <button class="btn-primary" onclick="app.nextScreen('s-info-3')">Next</button>
+        </section>
+
+        <!-- INFO 3: SOCIAL -->
+        <section id="s-info-3" class="hidden-screen">
+            <h2><i class="fas fa-users"></i> Social Activities</h2>
+            <ul class="info-list">
+                <li>Volunteer work</li>
+                <li>Serving the village</li>
+                <li>National belonging</li>
+                <li>Environmental awareness</li>
+            </ul>
+            <button class="btn-primary" onclick="app.nextScreen('s-info-4')">Next</button>
+        </section>
+
+        <!-- INFO 4: MANAGEMENT -->
+        <section id="s-info-4" class="hidden-screen">
+            <h2><i class="fas fa-tasks"></i> Management Responsibilities</h2>
+            <ul class="info-list">
+                <li>Planning activities</li>
+                <li>Managing facilities</li>
+                <li>Maintaining stadiums</li>
+                <li>Improving services</li>
+            </ul>
+            <button class="btn-primary" onclick="app.nextScreen('s-survey')">Start Survey</button>
+        </section>
+
+        <!-- SURVEY -->
+        <section id="s-survey" class="hidden-screen">
+            <div id="q1-container" class="question-block active-q">
+                <h3>1. How satisfied are you with the current management during the last five years?</h3>
+                <div class="options">
+                    <button class="btn-outline" onclick="app.recordVote('q1', 'Very Satisfied')">Very Satisfied</button>
+                    <button class="btn-outline" onclick="app.recordVote('q1', 'Not Satisfied')">Not Satisfied</button>
+                </div>
+            </div>
+
+            <div id="q2-container" class="question-block hidden-q">
+                <h3>2. Do you support youth leading the Youth Center during the next five years?</h3>
+                <div class="options">
+                    <button class="btn-outline" onclick="app.recordVote('q2', 'Yes')">Yes</button>
+                    <button class="btn-outline" onclick="app.recordVote('q2', 'No')">No</button>
+                </div>
+            </div>
+
+            <div id="q3-container" class="question-block hidden-q">
+                <h3>3. Who would you choose in the next election?</h3>
+                <div class="options">
+                    <button class="btn-outline" onclick="app.recordVote('q3', 'New Youth')">New Youth</button>
+                    <button class="btn-outline" onclick="app.recordVote('q3', 'Current Management')">Current Management</button>
+                </div>
+            </div>
+        </section>
+
+        <!-- MEDIA CAPTURE -->
+        <section id="s-media" class="hidden-screen">
+            <h2>Would you like to support your opinion?</h2>
+            <p>Maximum 30 seconds.</p>
+            
+            <div id="media-controls">
+                <button class="btn-primary" onclick="app.startVideo()"><i class="fas fa-video"></i> Record Video</button>
+                <button class="btn-primary" onclick="app.startAudio()"><i class="fas fa-microphone"></i> Record Audio</button>
+                <button class="btn-secondary" onclick="app.submitSurvey()">Skip & Submit</button>
+            </div>
+
+            <div id="recording-ui" class="hidden">
+                <video id="vid-preview" autoplay muted class="hidden"></video>
+                <div class="recording-indicator"></div>
+                <p id="time-left">30s</p>
+                <button class="btn-danger" id="stop-btn" onclick="app.stopRecording()">Stop Recording</button>
+            </div>
+        </section>
+
+        <!-- THANK YOU -->
+        <section id="s-thankyou" class="hidden-screen">
+            <div id="lottie-success"></div>
+            <h2>Thank You!</h2>
+            <p>Your voice matters to Al Ahmadiya Village.</p>
+            <p>Total Participants: <span id="participant-count" class="counter">...</span></p>
+            <button class="btn-primary" onclick="app.viewStats()">View Live Statistics</button>
+        </section>
+
+        <!-- STATISTICS -->
+        <section id="s-stats" class="hidden-screen">
+            <h2>Live Statistics</h2>
+            <div class="chart-grid">
+                <div class="chart-card"><canvas id="q1Chart"></canvas></div>
+                <div class="chart-card"><canvas id="q2Chart"></canvas></div>
+                <div class="chart-card"><canvas id="q3Chart"></canvas></div>
+            </div>
+            <div class="stats-counters">
+                <div class="stat-box">Videos: <span id="vid-count">0</span></div>
+                <div class="stat-box">Audios: <span id="aud-count">0</span></div>
+            </div>
+            <a href="gallery/" class="btn-secondary">View Media Gallery</a>
+        </section>
+    </main>
+
+    <!-- Scripts -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.2/gsap.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/lottie-web/5.12.2/lottie.min.js"></script>
+    <script src="animations.js"></script>
+    <script src="firebase.js" type="module"></script>
+    <script src="charts.js"></script>
+    <script src="app.js"></script>
+</body>
+</html>
