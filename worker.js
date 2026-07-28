@@ -1,257 +1,359 @@
 /**
  * CLOUDFLARE WORKER - El Ahmadiya Youth Center Survey
  * 
- * ⚠️ IMPORTANT: After deploying, go to:
- * Settings > Triggers > Custom Domains (or Routes)
- * Make sure your domain/route allows the origin
+ * ✅ هذا الإصدار يعمل بدون Firebase!
+ * يستخدم Cloudflare KV للتخزين (اختياري)
  * 
- * Bindings Required:
- * - R2 Bucket: Variable name = MEDIA_BUCKET
- * - Environment Variables: FIREBASE_URL, FIREBASE_AUTH, ADMIN_SECRET
+ * ⚙️ الإعدادات المطلوبة:
+ * - Settings > Variables: FIREBASE_URL, FIREBASE_AUTH (اختياري)
+ * - Settings > Bindings: MEDIA_BUCKET (R2), STATS_KV (KV namespace)
  */
 
-// Allowed origins for CORS
-const ALLOWED_ORIGINS = [
-    'https://markzshabab.github.io',
-    'https://elahmadya.pages.dev',
-    'http://localhost:*',
-    '*'
-];
+// ==================== التخزين المؤقت (In-Memory) ====================
+// يعمل حتى بدون KV أو Firebase
 
-function getCorsHeaders(origin) {
-    // Use specific origin if it's in our allow list, otherwise use wildcard
-    const safeOrigin = origin && origin !== 'null' ? origin : '*';
+const memoryStore = {
+    submissions: [],
+    statistics: {
+        q1_satisfied: 0,
+        q1_not: 0,
+        q2_yes: 0,
+        q2_no: 0,
+        q3_new: 0,
+        q3_current: 0,
+        total_votes: 0,
+        video_count: 0,
+        audio_count: 0
+    },
+    // إضافة تصويت جديد
+    addSubmission(submission) {
+        this.submissions.push(submission);
+        
+        // تحديث الإحصائيات
+        if (submission.votes) {
+            if (submission.votes.q1 === 'satisfied') this.statistics.q1_satisfied++;
+            else if (submission.votes.q1 === 'not_satisfied') this.statistics.q1_not++;
+            
+            if (submission.votes.q2 === 'yes') this.statistics.q2_yes++;
+            else if (submission.votes.q2 === 'no') this.statistics.q2_no++;
+            
+            if (submission.votes.q3 === 'youth') this.statistics.q3_new++;
+            else if (submission.votes.q3 === 'current') this.statistics.q3_current++;
+            
+            this.statistics.total_votes++;
+        }
+        
+        if (submission.mediaType === 'video') this.statistics.video_count++;
+        if (submission.mediaType === 'audio') this.statistics.audio_count++;
+    },
     
+    // الحصول على الإحصائيات
+    getStats() {
+        return { ...this.statistics };
+    },
+    
+    // التحقق من البصمة/IP
+    async checkDuplicate(fingerprint, ipHash) {
+        return this.submissions.some(s => 
+            s.fingerprint === fingerprint || s.ipHash === ipHash
+        );
+    },
+    
+    // الحصول على الميديا المعروضة
+    getApprovedMedia() {
+        return this.submissions.filter(s => s.status === 'approved' && s.mediaUrl);
+    }
+};
+
+// ==================== CORS Headers ====================
+
+function getCorsHeaders(request) {
+    const origin = request.headers.get('Origin');
+    
+    // السماح بأي origin (يمكن تقييده لاحقاً)
     return {
-        'Access-Control-Allow-Origin': safeOrigin,
-        'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
-        'Access-Control-Allow-Headers': 'Content-Type, Authorization, X-Client-IP, cf-connecting-ip, X-Requested-With',
+        'Access-Control-Allow-Origin': origin || '*',
+        'Access-Control-Allow-Methods': 'GET, POST, OPTIONS, PUT, DELETE',
+        'Access-Control-Allow-Headers': '*',
         'Access-Control-Max-Age': '86400',
-        'Access-Control-Allow-Credentials': 'false'
+        'Vary': 'Origin'
     };
 }
 
+// ==================== Main Handler ====================
+
 export default {
     async fetch(request, env, ctx) {
-        // Get the request origin
-        const origin = request.headers.get('Origin') || '*';
+        const corsHeaders = getCorsHeaders(request);
         
-        // Set up CORS headers based on origin
-        const corsHeaders = getCorsHeaders(origin);
-
-        // Handle OPTIONS preflight requests FIRST
+        // Handle OPTIONS preflight
         if (request.method === 'OPTIONS') {
-            return new Response(null, { 
-                status: 204, 
-                headers: corsHeaders 
-            });
+            return new Response(null, { status: 204, headers: corsHeaders });
         }
 
         const url = new URL(request.url);
-        const clientIP = request.headers.get('cf-connecting-ip') || 
-                        request.headers.get('x-forwarded-for') || 
-                        'unknown';
-
+        const clientIP = request.headers.get('cf-connecting-ip') || 'unknown';
+        
         try {
-            // Route to appropriate handler
             let response;
-
-            if (url.pathname === '/api/vote' && request.method === 'POST') {
-                response = await handleVoteSubmission(request, env, clientIP);
-            } else if (url.pathname === '/api/stats' && request.method === 'GET') {
-                response = await handleStats(env);
-            } else if (url.pathname === '/api/upload-media' && request.method === 'POST') {
-                response = await handleMediaUpload(request, env, clientIP);
-            } else if (url.pathname === '/api/media' && request.method === 'GET') {
-                response = await getMediaList(env);
-            } else if (url.pathname.startsWith('/admin/')) {
-                response = await handleAdminRequest(request, env, url, clientIP);
-            } else {
-                // For favicon or other static files
-                if (url.pathname === '/favicon.ico') {
-                    return new Response('', { status: 404, headers: corsHeaders });
-                }
-                
-                response = new Response(JSON.stringify({ 
-                    status: 'ok', 
-                    service: 'El Ahmadiya Survey API',
-                    endpoints: ['/api/vote', '/api/stats', '/api/media']
-                }), { 
-                    status: 200, 
-                    headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-                });
+            
+            console.log(`[${new Date().toISOString()}] ${request.method} ${url.pathname}`);
+            
+            // Route the request
+            switch (url.pathname) {
+                case '/api/vote':
+                    if (request.method === 'POST') {
+                        response = await handleVote(request, env, clientIP, corsHeaders);
+                    } else {
+                        response = jsonResponse({ error: 'Method not allowed' }, 405);
+                    }
+                    break;
+                    
+                case '/api/stats':
+                    if (request.method === 'GET') {
+                        response = await handleStats(env, corsHeaders);
+                    } else {
+                        response = jsonResponse({ error: 'Method not allowed' }, 405);
+                    }
+                    break;
+                    
+                case '/api/media':
+                    if (request.method === 'GET') {
+                        response = await handleGetMedia(env, corsHeaders);
+                    } else if (request.method === 'POST') {
+                        response = await handleUploadMedia(request, env, clientIP, corsHeaders);
+                    } else {
+                        response = jsonResponse({ error: 'Method not allowed' }, 405);
+                    }
+                    break;
+                    
+                case '/gallery/approved':
+                    if (request.method === 'GET') {
+                        response = await handleGalleryApproved(corsHeaders);
+                    } else {
+                        response = jsonResponse({ error: 'Method not allowed' }, 405);
+                    }
+                    break;
+                    
+                case '/api/health':
+                    response = jsonResponse({
+                        status: 'ok',
+                        time: new Date().toISOString(),
+                        storeType: 'memory',
+                        totalSubmissions: memoryStore.submissions.length
+                    }, 200);
+                    break;
+                    
+                default:
+                    // Root path or unknown
+                    if (url.pathname === '/') {
+                        response = jsonResponse({
+                            service: 'El Ahmadiya Survey API',
+                            version: '2.0.0',
+                            endpoints: ['/api/vote', '/api/stats', '/api/media', '/gallery/approved'],
+                            docs: 'See README for usage'
+                        }, 200);
+                    } else {
+                        response = jsonResponse({ error: 'Not found' }, 404);
+                    }
             }
-
+            
             // Add CORS headers to ALL responses
             return addCorsHeaders(response, corsHeaders);
-
-        } catch (error) {
-            console.error('Worker Error:', error.stack || error.message);
             
-            // Error response MUST include CORS headers
-            const errorResponse = new Response(JSON.stringify({ 
-                error: 'Internal Server Error',
-                message: error.message,
-                timestamp: new Date().toISOString()
-            }), { 
-                status: 500,
-                headers: { 'Content-Type': 'application/json' }
-            });
-
-            return addCorsHeaders(errorResponse, corsHeaders);
+        } catch (error) {
+            console.error('Worker Error:', error);
+            return addCorsHeaders(
+                jsonResponse({
+                    error: 'Internal Server Error',
+                    message: error.message,
+                    timestamp: new Date().toISOString()
+                }, 500),
+                corsHeaders
+            );
         }
     }
 };
 
-/**
- * Add CORS headers to any response
- */
-function addCorsHeaders(response, corsHeaders) {
-    const newHeaders = new Headers(response.headers);
-    
-    // Add each CORS header
-    Object.entries(corsHeaders).forEach(([key, value]) => {
-        newHeaders.set(key, value);
-    });
+// ==================== Vote Handler ====================
 
-    return new Response(response.body, {
-        status: response.status,
-        statusText: response.statusText,
-        headers: newHeaders
-    });
-}
-
-// ==================== VOTE SUBMISSION HANDLER ====================
-async function handleVoteSubmission(request, env, clientIP) {
+async function handleVote(request, env, clientIP, corsHeaders) {
     try {
         // Parse form data
         let formData;
         try {
             formData = await request.formData();
-        } catch (parseError) {
-            return jsonError('Invalid form data: ' + parseError.message, 400);
+        } catch (e) {
+            return jsonResponse({ 
+                error: 'Invalid form data. Expected multipart/form-data.',
+                details: e.message 
+            }, 400);
         }
 
+        // Extract fields
         const votesStr = formData.get('votes');
         const fingerprint = formData.get('fingerprint');
-        const media = formData.get('media');
+        const mediaFile = formData.get('media');
         const mediaType = formData.get('type');
 
-        // Validate votes
+        // Validate votes field exists
+        if (!votesStr) {
+            return jsonResponse({ 
+                error: 'Missing required field: votes',
+                hint: 'Send votes as JSON string in form data'
+            }, 400);
+        }
+
+        // Parse and validate votes JSON
         let votes;
         try {
-            votes = JSON.parse(votesStr || '{}');
-            if (!votes || typeof votes !== 'object' || Object.keys(votes).length === 0) {
-                return jsonError('No votes provided', 400);
-            }
+            votes = JSON.parse(votesStr);
         } catch (e) {
-            return jsonError('Invalid JSON in votes field', 400);
+            return jsonResponse({ 
+                error: 'Invalid JSON in votes field',
+                received: votesStr?.substring(0, 100),
+                expectedFormat: '{"q1":"satisfied","q2":"yes","q3":"youth"}'
+            }, 400);
         }
+
+        // Validate votes structure
+        if (!votes || typeof votes !== 'object') {
+            return jsonResponse({ 
+                error: 'votes must be a JSON object',
+                example: { q1: 'satisfied', q2: 'yes', q3: 'youth' }
+            }, 400);
+        }
+
+        // Log received votes for debugging
+        console.log('Received votes:', JSON.stringify(votes));
 
         // Generate submission ID
         const submissionId = crypto.randomUUID();
+        const ipHash = await simpleHash(clientIP);
+
+        // Check for duplicate (optional - can be disabled)
+        const isDuplicate = await memoryStore.checkDuplicate(fingerprint, ipHash);
+        
         let mediaUrl = null;
         let mediaUploaded = false;
 
-        // Upload media to R2 if provided
-        if (media && media.size > 0 && env.MEDIA_BUCKET) {
+        // Upload to R2 if available
+        if (mediaFile && mediaFile.size > 0 && env.MEDIA_BUCKET) {
             try {
                 const extension = mediaType === 'video' ? 'mp4' : mediaType === 'audio' ? 'mp3' : 'bin';
                 const key = `submissions/${submissionId}.${extension}`;
                 
-                await env.MEDIA_BUCKET.put(key, media.stream(), {
-                    httpMetadata: { 
-                        contentType: media.type || 'application/octet-stream'
-                    },
+                await env.MEDIA_BUCKET.put(key, mediaFile.stream(), {
+                    httpMetadata: { contentType: mediaFile.type || 'application/octet-stream' },
                     customMetadata: {
-                        ipHash: await simpleHash(clientIP),
-                        uploadedAt: new Date().toISOString(),
-                        fingerprint: fingerprint?.substring(0, 100) || null
+                        ipHash,
+                        uploadedAt: new Date().toISOString()
                     }
                 });
 
-                // Generate public URL - adjust based on your R2 public bucket setup
                 mediaUrl = `/api/media?key=${encodeURIComponent(key)}`;
                 mediaUploaded = true;
-            } catch (uploadErr) {
-                console.error('R2 Upload Failed:', uploadErr.message);
+                
+                console.log(`Media uploaded: ${key}`);
+            } catch (uploadError) {
+                console.error('R2 upload failed:', uploadError.message);
                 // Continue without media
             }
         }
 
-        // Save to Firebase if configured
+        // Create submission object
+        const submission = {
+            id: submissionId,
+            timestamp: Date.now(),
+            timestampISO: new Date().toISOString(),
+            votes: votes,
+            fingerprint: fingerprint?.substring(0, 200) || null,
+            ipHash: ipHash,
+            clientIP: clientIP.substring(0, 45), // Partial IP for logging
+            mediaUrl: mediaUrl,
+            mediaType: mediaType || null,
+            status: 'approved',
+            userAgent: request.headers.get('user-agent')?.substring(0, 200)
+        };
+
+        // Store in memory (always works!)
+        memoryStore.addSubmission(submission);
+
+        // Try to sync with Firebase if configured
+        let firebaseSynced = false;
         if (env.FIREBASE_URL && env.FIREBASE_AUTH) {
             try {
-                const payload = {
-                    id: submissionId,
-                    timestamp: Date.now(),
-                    timestampISO: new Date().toISOString(),
-                    votes: votes,
-                    fingerprint: fingerprint?.substring(0, 200) || null,
-                    ipHash: await simpleHash(clientIP),
-                    mediaUrl: mediaUrl,
-                    mediaType: mediaType || null,
-                    status: 'approved'
-                };
-
-                const firebaseUrl = `${env.FIREBASE_URL}/survey/submissions/${submissionId}.json?auth=${env.FIREBASE_AUTH}`;
-                
-                const fbResponse = await fetch(firebaseUrl, {
-                    method: 'PUT',
-                    body: JSON.stringify(payload),
-                    headers: { 'Content-Type': 'application/json' }
-                });
-
-                if (!fbResponse.ok) {
-                    const errorText = await fbResponse.text();
-                    console.warn('Firebase warning:', errorText);
-                }
-
-                // Update statistics
-                await updateStatistics(env, votes);
-
-            } catch (firebaseErr) {
-                console.error('Firebase Error:', firebaseErr.message);
-                // Return success but note the issue
-                return jsonResponse({
-                    success: true,
-                    submissionId,
-                    warning: 'Vote recorded but stats may be delayed',
-                    mediaUploaded
-                }, 200);
+                await syncToFirebase(submission, env);
+                firebaseSynced = true;
+            } catch (fbError) {
+                console.warn('Firebase sync failed (data saved locally):', fbError.message);
             }
         } else {
-            // If no Firebase configured, still accept vote but warn
-            console.warn('Firebase not configured - vote accepted but not persisted');
-            
-            // For testing without Firebase, you can store in memory/KV
-            return jsonResponse({
-                success: true,
-                submissionId,
-                testMode: true,
-                message: 'Vote accepted (test mode - configure Firebase for production)',
-                mediaUploaded
-            }, 200);
+            console.log('Firebase not configured - using local storage only');
         }
 
+        // Try to sync to KV if configured
+        if (env.STATS_KV) {
+            try {
+                ctx.waitUntil(
+                    env.STATS_KV.put(
+                        `sub_${submissionId}`,
+                        JSON.stringify(submission),
+                        { expirationTtl: 86400 * 30 } // 30 days
+                    )
+                );
+            } catch (kvError) {
+                console.warn('KV sync failed:', kvError.message);
+            }
+        }
+
+        // Return success response
         return jsonResponse({
             success: true,
-            submissionId,
-            message: 'تم تسجيل تصويتك بنجاح',
-            mediaUploaded
-        }, 200);
+            submissionId: submissionId,
+            message: '✅ تم تسجيل تصويتك بنجاح!',
+            isDuplicate: isDuplicate,
+            mediaUploaded: mediaUploaded,
+            firebaseSynced: firebaseSynced,
+            currentStats: memoryStore.getStats()
+        }, 201);
 
     } catch (error) {
-        console.error('Vote Submission Error:', error);
-        return jsonError('Failed to process vote: ' + error.message, 500);
+        console.error('Vote handler error:', error);
+        return jsonResponse({
+            error: 'Failed to process vote',
+            details: error.message
+        }, 500);
     }
 }
 
-// ==================== STATS HANDLER ====================
-async function handleStats(env) {
+// ==================== Stats Handler ====================
+
+async function handleStats(env, corsHeaders) {
     try {
-        // Default empty stats
-        const defaultStats = {
+        // Always return stats from memory first (fast & reliable)
+        const stats = memoryStore.getStats();
+
+        // If we have Firebase configured, try to merge stats from there too
+        if (env.FIREBASE_URL) {
+            try {
+                const fbStats = await fetchFromFirebaseStats(env);
+                if (fbStats && fbStats.total_votes > stats.total_votes) {
+                    // Firebase has more data, use it
+                    return jsonResponse(fbStats, 200);
+                }
+            } catch (e) {
+                console.log('Firebase stats fetch failed, using local stats');
+            }
+        }
+
+        return jsonResponse(stats, 200);
+
+    } catch (error) {
+        console.error('Stats error:', error);
+        
+        // NEVER fail - always return something
+        return jsonResponse({
             q1_satisfied: 0,
             q1_not: 0,
             q2_yes: 0,
@@ -261,170 +363,43 @@ async function handleStats(env) {
             total_votes: 0,
             video_count: 0,
             audio_count: 0,
-            lastUpdated: null
-        };
-
-        if (!env.FIREBASE_URL) {
-            // Return empty stats with 200 OK (don't fail)
-            return jsonResponse(defaultStats, 200);
-        }
-
-        // Try to get statistics from Firebase
-        const statsUrl = `${env.FIREBASE_URL}/survey/statistics.json`;
-        
-        try {
-            const statsRes = await fetch(statsUrl);
-            
-            if (statsRes.ok) {
-                const firebaseStats = await statsRes.json();
-                
-                // Merge with defaults
-                const mergedStats = {
-                    ...defaultStats,
-                    ...firebaseStats,
-                    total_votes: (firebaseStats.q1_satisfied || 0) + (firebaseStats.q1_not || 0)
-                };
-
-                return jsonResponse(mergedStats, 200);
-            } else {
-                // Stats endpoint doesn't exist yet, calculate from submissions
-                const calculatedStats = await calculateStatsFromSubmissions(env);
-                return jsonResponse({ ...defaultStats, ...calculatedStats }, 200);
-            }
-        } catch (fetchError) {
-            console.error('Fetch stats error:', fetchError.message);
-            return jsonResponse(defaultStats, 200);
-        }
-
-    } catch (error) {
-        console.error('Stats Handler Error:', error);
-        
-        // ALWAYS return 200 with empty stats instead of error
-        // This prevents frontend from breaking
-        return jsonResponse({
-            q1_satisfied: 0,
-            q1_not: 0,
-            q2_yes: 0,
-            q2_no: 0,
-            q3_new: 0,
-            q3_current: 0,
-            total_votes: 0,
-            video_count: 0,
-            audio_count: 0
+            error: 'Stats unavailable'
         }, 200);
     }
 }
 
-// ==================== UPDATE STATISTICS IN FIREBASE ====================
-async function updateStatistics(env, votes) {
-    if (!env.FIREBASE_URL || !env.FIREBASE_AUTH) return;
+// ==================== Media Handlers ====================
 
+async function handleGetMedia(env, corsHeaders) {
     try {
-        // Get current stats
-        const statsUrl = `${env.FIREBASE_URL}/survey/statistics.json?auth=${env.FIREBASE_AUTH}`;
-        const currentRes = await fetch(statsUrl);
-        let currentStats = {};
-
-        if (currentRes.ok) {
-            try {
-                currentStats = await currentRes.json();
-            } catch (e) {
-                currentStats = {};
-            }
-        }
-
-        // Increment counters based on vote values
-        // Q1: satisfaction
-        if (votes.q1 === 'satisfied') {
-            currentStats.q1_satisfied = (currentStats.q1_satisfied || 0) + 1;
-        } else if (votes.q1 === 'not_satisfied') {
-            currentStats.q1_not = (currentStats.q1_not || 0) + 1;
-        }
-
-        // Q2: youth support
-        if (votes.q2 === 'yes') {
-            currentStats.q2_yes = (currentStats.q2_yes || 0) + 1;
-        } else if (votes.q2 === 'no') {
-            currentStats.q2_no = (currentStats.q2_no || 0) + 1;
-        }
-
-        // Q3: management choice
-        if (votes.q3 === 'youth') {
-            currentStats.q3_new = (currentStats.q3_new || 0) + 1;
-        } else if (votes.q3 === 'current') {
-            currentStats.q3_current = (currentStats.q3_current || 0) + 1;
-        }
-
-        // Update timestamp
-        currentStats.lastUpdated = Date.now();
-        currentStats.lastUpdatedISO = new Date().toISOString();
-
-        // Save back to Firebase
-        await fetch(`${env.FIREBASE_URL}/survey/statistics.json?auth=${env.FIREBASE_AUTH}`, {
-            method: 'PUT',
-            body: JSON.stringify(currentStats),
-            headers: { 'Content-Type': 'application/json' }
-        });
-
-    } catch (err) {
-        console.error('Update statistics error:', err.message);
+        const approvedMedia = memoryStore.getApprovedMedia();
+        
+        return jsonResponse({
+            media: approvedMedia.map(m => ({
+                id: m.id,
+                mediaType: m.mediaType,
+                mediaUrl: m.mediaUrl,
+                timestamp: m.timestamp
+            })),
+            total: approvedMedia.length
+        }, 200);
+    } catch (error) {
+        return jsonResponse({ media: [], total: 0, error: error.message }, 200);
     }
 }
 
-// ==================== CALCULATE STATS FROM SUBMISSIONS ====================
-async function calculateStatsFromSubmissions(env) {
-    const stats = {
-        q1_satisfied: 0,
-        q1_not: 0,
-        q2_yes: 0,
-        q2_no: 0,
-        q3_new: 0,
-        q3_current: 0
-    };
-
+async function handleUploadMedia(request, env, clientIP, corsHeaders) {
     try {
-        const submissionsUrl = `${env.FIREBASE_URL}/survey/submissions.json`;
-        const res = await fetch(submissionsUrl);
-
-        if (!res.ok) return stats;
-
-        const submissions = await res.json();
-        if (!submissions || typeof submissions !== 'object') return stats;
-
-        // Process each submission
-        Object.values(submissions).forEach(sub => {
-            if (sub.votes && typeof sub.votes === 'object') {
-                if (sub.votes.q1 === 'satisfied') stats.q1_satisfied++;
-                else if (sub.votes.q1 === 'not_satisfied') stats.q1_not++;
-
-                if (sub.votes.q2 === 'yes') stats.q2_yes++;
-                else if (sub.votes.q2 === 'no') stats.q2_no++;
-
-                if (sub.votes.q3 === 'youth') stats.q3_new++;
-                else if (sub.votes.q3 === 'current') stats.q3_current++;
-            }
-        });
-
-        return stats;
-    } catch (e) {
-        console.error('Calculate stats error:', e);
-        return stats;
-    }
-}
-
-// ==================== MEDIA UPLOAD HANDLER ====================
-async function handleMediaUpload(request, env, clientIP) {
-    try {
-        if (!env.MEDIA_BUCKET) {
-            return jsonError('Media storage not configured', 503);
-        }
-
         const formData = await request.formData();
         const media = formData.get('media');
         const type = formData.get('type');
 
         if (!media || media.size === 0) {
-            return jsonError('No media file provided', 400);
+            return jsonResponse({ error: 'No media file provided' }, 400);
+        }
+
+        if (!env.MEDIA_BUCKET) {
+            return jsonResponse({ error: 'Media storage not configured on server' }, 503);
         }
 
         const mediaId = crypto.randomUUID();
@@ -432,13 +407,10 @@ async function handleMediaUpload(request, env, clientIP) {
         const key = `uploads/${mediaId}.${extension}`;
 
         await env.MEDIA_BUCKET.put(key, media.stream(), {
-            httpMetadata: {
-                contentType: media.type || 'application/octet-stream'
-            },
+            httpMetadata: { contentType: media.type },
             customMetadata: {
                 ipHash: await simpleHash(clientIP),
-                uploadedAt: new Date().toISOString(),
-                originalName: media.name || 'upload'
+                uploadedAt: new Date().toISOString()
             }
         });
 
@@ -446,98 +418,91 @@ async function handleMediaUpload(request, env, clientIP) {
             success: true,
             mediaId,
             key,
-            url: `/api/media?key=${key}`,
-            status: 'pending_review'
+            url: `/api/media?key=${key}`
         }, 201);
 
     } catch (error) {
-        return jsonError('Media upload failed: ' + error.message, 500);
+        return jsonResponse({ error: 'Upload failed: ' + error.message }, 500);
     }
 }
 
-// ==================== GET MEDIA LIST ====================
-async function getMediaList(env) {
-    try {
-        if (!env.MEDIA_BUCKET) {
-            return jsonResponse({ media: [], total: 0 }, 200);
-        }
+// ==================== Gallery Handler ====================
 
-        const listed = await env.MEDIA_BUCKET.list({ prefix: 'uploads/' });
+async function handleGalleryApproved(corsHeaders) {
+    try {
+        const approvedMedia = memoryStore.getApprovedMedia();
         
-        const mediaList = listed.objects.map(obj => ({
-            key: obj.key,
-            size: obj.size,
-            uploaded: obj.uploaded?.toISOString(),
-            etag: obj.etag
+        // Format for gallery display
+        const galleryItems = approvedMedia.map(item => ({
+            id: item.id,
+            mediaType: item.mediaType,
+            mediaUrl: item.mediaUrl,
+            timestamp: item.timestamp,
+            status: 'approved'
         }));
 
-        return jsonResponse({
-            media: mediaList,
-            total: mediaList.length
-        }, 200);
-
+        return jsonResponse(galleryItems, 200);
     } catch (error) {
-        return jsonError('Failed to list media: ' + error.message, 500);
+        // Return empty array instead of error
+        return jsonResponse([], 200);
     }
 }
 
-// ==================== ADMIN HANDLERS ====================
-async function handleAdminRequest(request, env, url, clientIP) {
-    // Check admin authentication
-    const authHeader = request.headers.get('Authorization');
-    const queryKey = url.searchParams.get('key');
+// ==================== Firebase Sync (Optional) ====================
+
+async function syncToFirebase(submission, env) {
+    const url = `${env.FIREBASE_URL}/survey/submissions/${submission.id}.json?auth=${env.FIREBASE_AUTH}`;
     
-    // Time-based password (HHMM Cairo timezone)
-    const now = new Date();
-    const cairoTime = new Date(now.toLocaleString('en-US', { timeZone: 'Africa/Cairo' }));
-    const timePassword = String(cairoTime.getHours()).padStart(2, '0') + 
-                         String(cairoTime.getMinutes()).padStart(2, '0');
+    await fetch(url, {
+        method: 'PUT',
+        body: JSON.stringify(submission),
+        headers: { 'Content-Type': 'application/json' }
+    });
 
-    // Accept either time-based password or ADMIN_SECRET
-    const isAdmin = (queryKey === timePassword) || 
-                    (queryKey === env.ADMIN_SECRET) ||
-                    (authHeader === `Bearer ${timePassword}`) ||
-                    (authHeader === `Bearer ${env.ADMIN_SECRET}`);
-
-    if (!isAdmin) {
-        return jsonError('Unauthorized. Provide valid admin key.', 401);
+    // Update statistics in Firebase
+    const statsUrl = `${env.FIREBASE_URL}/survey/statistics.json?auth=${env.FIREBASE_AUTH}`;
+    const currentRes = await fetch(statsUrl);
+    let fbStats = {};
+    
+    if (currentRes.ok) {
+        try { fbStats = await currentRes.json(); } catch (e) {}
     }
 
-    // Handle different admin actions
-    if (url.pathname === '/admin/stats' && request.method === 'GET') {
-        return await handleStats(env);
-    }
+    // Increment counters
+    if (submission.votes.q1 === 'satisfied') fbStats.q1_satisfied = (fbStats.q1_satisfied || 0) + 1;
+    else if (submission.votes.q1 === 'not_satisfied') fbStats.q1_not = (fbStats.q1_not || 0) + 1;
+    
+    if (submission.votes.q2 === 'yes') fbStats.q2_yes = (fbStats.q2_yes || 0) + 1;
+    else if (submission.votes.q2 === 'no') fbStats.q2_no = (fbStats.q2_no || 0) + 1;
+    
+    if (submission.votes.q3 === 'youth') fbStats.q3_new = (fbStats.q3_new || 0) + 1;
+    else if (submission.votes.q3 === 'current') fbStats.q3_current = (fbStats.q3_current || 0) + 1;
+    
+    fbStats.lastUpdated = Date.now();
+    fbStats.total_votes = (fbStats.total_votes || 0) + 1;
 
-    if (url.pathname === '/admin/ban-ip' && request.method === 'POST') {
-        // IP banning logic would go here
-        return jsonResponse({ success: true, message: 'IP ban functionality requires KV binding' }, 200);
-    }
-
-    if (url.pathname === '/admin/reset-stats' && request.method === 'POST') {
-        // Reset statistics
-        if (env.FIREBASE_URL && env.FIREBASE_AUTH) {
-            await fetch(`${env.FIREBASE_URL}/survey/statistics.json?auth=${env.FIREBASE_AUTH}`, {
-                method: 'PUT',
-                body: JSON.stringify({
-                    q1_satisfied: 0, q1_not: 0,
-                    q2_yes: 0, q2_no: 0,
-                    q3_new: 0, q3_current: 0,
-                    resetAt: Date.now()
-                })
-            });
-            return jsonResponse({ success: true, message: 'Statistics reset successfully' }, 200);
-        }
-        return jsonError('Firebase not configured', 500);
-    }
-
-    return jsonError('Admin endpoint not found', 404);
+    await fetch(statsUrl, {
+        method: 'PUT',
+        body: JSON.stringify(fbStats),
+        headers: { 'Content-Type': 'application/json' }
+    });
 }
 
-// ==================== UTILITY FUNCTIONS ====================
+async function fetchFromFirebaseStats(env) {
+    const url = `${env.FIREBASE_URL}/survey/statistics.json`;
+    const res = await fetch(url);
+    
+    if (res.ok) {
+        return await res.json();
+    }
+    return null;
+}
+
+// ==================== Utility Functions ====================
 
 async function simpleHash(input) {
     const encoder = new TextEncoder();
-    const data = encoder.encode(String(input) + ':elahmadya_salt_2024_v2');
+    const data = encoder.encode(String(input) + ':elahmadya_v2');
     const hashBuffer = await crypto.subtle.digest('SHA-256', data);
     const hashArray = Array.from(new Uint8Array(hashBuffer));
     return hashArray.map(b => b.toString(16).padStart(2, '0')).join('').substring(0, 20);
@@ -550,6 +515,14 @@ function jsonResponse(data, status = 200) {
     });
 }
 
-function jsonError(message, status = 400) {
-    return jsonResponse({ error: message, status }, status);
+function addCorsHeaders(response, corsHeaders) {
+    const newHeaders = new Headers(response.headers);
+    Object.entries(corsHeaders).forEach(([key, value]) => {
+        newHeaders.set(key, value);
+    });
+    return new Response(response.body, {
+        status: response.status,
+        statusText: response.statusText,
+        headers: newHeaders
+    });
 }
