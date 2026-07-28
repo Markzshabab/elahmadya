@@ -1,11 +1,11 @@
 /**
  * Al Ahmadiya Youth Center Survey - Main Application Logic
- * Pure Vanilla JS - Modern & Optimized
+ * Fixed Global Variable Collision
  */
 
-const WORKER_URL = 'https://markzshabab.studusa05.workers.dev';
-
 const app = {
+    // تم وضع الرابط داخل كائن app نفسه لمنع التعارض
+    apiUrl: 'https://markzshabab.studusa05.workers.dev',
     state: {
         votes: {},
         mediaBlob: null,
@@ -15,7 +15,6 @@ const app = {
     stream: null,
     recordTimer: null,
 
-    // التنقل بين الشاشات باستخدام GSAP
     nextScreen(screenId) {
         const current = document.querySelector('.active-screen');
         const next = document.getElementById(screenId);
@@ -39,7 +38,6 @@ const app = {
         });
     },
 
-    // تسجيل إجابات الأسئلة
     recordVote(question, answer) {
         this.state.votes[question] = answer;
         const currentQ = document.getElementById(`${question}-container`);
@@ -64,7 +62,6 @@ const app = {
         });
     },
 
-    // بدء تسجيل الفيديو أو الصوت (بحد أقصى 30 ثانية)
     async startVideo() { this.initMedia(true, false); },
     async startAudio() { this.initMedia(false, true); },
     
@@ -116,7 +113,6 @@ const app = {
         }
     },
 
-    // إرسال البيانات إلى Cloudflare Worker Edge API
     async submitSurvey() {
         if (this.mediaRecorder && this.mediaRecorder.state !== 'inactive') {
             this.stopRecording();
@@ -131,7 +127,8 @@ const app = {
         }
 
         try {
-            const res = await fetch(`${WORKER_URL}/submit`, {
+            // نستخدم الرابط الخاص بكائن app هنا
+            const res = await fetch(`${this.apiUrl}/submit`, {
                 method: 'POST',
                 body: formData
             });

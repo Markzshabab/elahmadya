@@ -1,9 +1,10 @@
 /**
  * Al Ahmadiya Youth Center Survey - Live Charts Integration
- * Uses Chart.js with dynamic stats fetched from Cloudflare Worker
+ * Fixed Global Variable Collision
  */
 
-const WORKER_URL = 'https://markzshabab.studusa05.workers.dev';
+// غيرنا اسم المتغير ليكون فريداً ولن يتعارض مع أي ملف آخر
+const CHARTS_API_URL = 'https://markzshabab.studusa05.workers.dev';
 let q1Chart, q2Chart, q3Chart;
 
 async function initCharts() {
@@ -11,13 +12,12 @@ async function initCharts() {
     Chart.defaults.font.family = 'Cairo, sans-serif';
     
     try {
-        const res = await fetch(`${WORKER_URL}/stats`);
+        const res = await fetch(`${CHARTS_API_URL}/stats`);
         const data = await res.json();
         
         const primaryColors = ['#00f2fe', '#ff416c'];
         const secondaryColors = ['#4facfe', '#f39c12'];
 
-        // Q1 Chart - Satisfaction
         const ctx1 = document.getElementById('q1Chart');
         if (ctx1) {
             if (q1Chart) q1Chart.destroy();
@@ -34,7 +34,6 @@ async function initCharts() {
             });
         }
 
-        // Q2 Chart - Youth Leadership
         const ctx2 = document.getElementById('q2Chart');
         if (ctx2) {
             if (q2Chart) q2Chart.destroy();
@@ -51,7 +50,6 @@ async function initCharts() {
             });
         }
 
-        // Q3 Chart - Next Election
         const ctx3 = document.getElementById('q3Chart');
         if (ctx3) {
             if (q3Chart) q3Chart.destroy();
@@ -68,7 +66,6 @@ async function initCharts() {
             });
         }
 
-        // تحديث العدادات ببطء باستخدام GSAP
         if (typeof gsap !== 'undefined') {
             const vidEl = document.getElementById('vid-count');
             const audEl = document.getElementById('aud-count');
