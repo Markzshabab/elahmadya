@@ -1,39 +1,72 @@
-const CHARTS_API_URL = 'https://markzshabab.studusa05.workers.dev';
-let q1Chart, q2Chart, q3Chart;
+// =========================================================
+// LIVE STATISTICS — Chart.js pie/doughnut/bar wired to Firebase
+// =========================================================
+import { db, ref, onValue } from "./firebase-config.js";
 
-async function initCharts() {
-    Chart.defaults.color = '#ffffff';
-    Chart.defaults.font.family = 'Cairo, sans-serif';
-    try {
-        const res = await fetch(`${CHARTS_API_URL}/stats`);
-        const data = await res.json();
-        const primaryColors = ['#00f2fe', '#ff416c'];
-        const secondaryColors = ['#4facfe', '#f39c12'];
+const CHART_COLORS = ["#16C79A", "#E8B854", "#FF5470", "#4C6EF5"];
 
-        const ctx1 = document.getElementById('q1Chart');
-        if (ctx1) {
-            if (q1Chart) q1Chart.destroy();
-            q1Chart = new Chart(ctx1, { type: 'pie', data: { labels: ['راضي جداً', 'غير راضي'], datasets: [{ data: [data.q1_satisfied, data.q1_not], backgroundColor: primaryColors }] }, options: { responsive: true, plugins: { title: { display: true, text: 'مدى الرضا عن الإدارة الحالية' } } } });
-        }
-
-        const ctx2 = document.getElementById('q2Chart');
-        if (ctx2) {
-            if (q2Chart) q2Chart.destroy();
-            q2Chart = new Chart(ctx2, { type: 'doughnut', data: { labels: ['نعم', 'لا'], datasets: [{ data: [data.q2_yes, data.q2_no], backgroundColor: secondaryColors }] }, options: { responsive: true, plugins: { title: { display: true, text: 'تأييد قيادة الشباب للمركز' } } } });
-        }
-
-        const ctx3 = document.getElementById('q3Chart');
-        if (ctx3) {
-            if (q3Chart) q3Chart.destroy();
-            q3Chart = new Chart(ctx3, { type: 'bar', data: { labels: ['شباب جديد', 'الإدارة الحالية'], datasets: [{ label: 'الأصوات', data: [data.q3_new, data.q3_current], backgroundColor: primaryColors[0] }] }, options: { responsive: true, plugins: { title: { display: true, text: 'اختيار الانتخابات القادمة' } } } });
-        }
-
-        if (typeof gsap !== 'undefined') {
-            const vidEl = document.getElementById('vid-count');
-            const audEl = document.getElementById('aud-count');
-            if (vidEl) gsap.to(vidEl, { innerHTML: data.video_count || 0, roundProps: "innerHTML", duration: 1.5 });
-            if (audEl) gsap.to(audEl, { innerHTML: data.audio_count || 0, roundProps: "innerHTML", duration: 1.5 });
-        }
-    } catch (error) { console.error("Error fetching stats:", error); }
+function baseOptions(extra = {}) {
+  return {
+    responsive: true,
+    plugins: {
+      legend: { labels: { color: "#EDEFF5", font: { family: "Cairo" } } },
+    },
+    ...extra,
+  };
 }
-window.initCharts = initCharts;
+
+let charts = {};
+
+function upsertChart(id, type, labels, data) {
+  const ctx = document.getElementById(id);
+  if (!ctx) return;
+  if (charts[id]) {
+    charts[id].data.labels = labels;
+    charts[id].data.datasets[0].data = data;
+    charts[id].update();
+    return;
+  }
+  charts[id] = new Chart(ctx, {
+    type,
+    data: {
+      labels,
+      datasets: [{ data, backgroundColor: CHART_COLORS, borderWidth: 0 }],
+    },
+    options: baseOptions(),
+  });
+}
+
+function animateCounter(el, target) {
+  if (!el) return;
+  const start = Number(el.textContent.replace(/,/g, "")) || 0;
+  const duration = 700;
+  const t0 = performance.now();
+  function step(t) {
+    const p = Math.min(1, (t - t0) / duration);
+    const val = Math.round(start + (target - start) * p);
+    el.textContent = val.toLocaleString("ar-EG");
+    if (p < 1) requestAnimationFrame(step);
+  }
+  requestAnimationFrame(step);
+}
+
+function initLiveStats() {
+  const statsRef = ref(db, "statistics/summary");
+  onValue(statsRef, (snap) => {
+    const s = snap.val();
+    if (!s) return;
+
+    animateCounter(document.getElementById("cTotalVotes"), s.total || 0);
+    animateCounter(document.getElementById("cToday"), s.today || 0);
+    animateCounter(document.getElementById("cWeek"), s.week || 0);
+    animateCounter(document.getElementById("cVideos"), s.mediaSubmitted || 0);
+    animateCounter(document.getElementById("cApproved"), s.mediaApproved || 0);
+    animateCounter(document.getElementById("cRejected"), s.mediaRejected || 0);
+
+    if (s.q1) upsertChart("chartQ1", "doughnut", ["راضٍ جدًا", "غير راضٍ"], [s.q1.satisfied || 0, s.q1.not_satisfied || 0]);
+    if (s.q2) upsertChart("chartQ2", "pie", ["قيادة شبابية", "الإدارة الحالية"], [s.q2.youth || 0, s.q2.current || 0]);
+    if (s.q3) upsertChart("chartQ3", "bar", ["الشباب الجديد", "الإدارة الحالية"], [s.q3.new_youth || 0, s.q3.current_mgmt || 0]);
+  });
+}
+
+document.addEventListener("DOMContentLoaded", initLiveStats);
