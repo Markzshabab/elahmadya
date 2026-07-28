@@ -120,6 +120,14 @@ function initNav() {
     btn.addEventListener("click", () => switchView(btn.dataset.view));
   });
 }
+
+const VIEW_TITLES = {
+  survey: "استبيان مركز شباب الأحمدية | التصويت",
+  media: "استبيان مركز شباب الأحمدية | سجّل مشاركتك",
+  wall: "استبيان مركز شباب الأحمدية | مشاركات الأهالي",
+  stats: "استبيان مركز شباب الأحمدية | النتائج المباشرة",
+};
+
 function switchView(name) {
   $$(".view").forEach((v) => v.classList.remove("active"));
   $(`#view-${name}`).classList.add("active");
@@ -128,6 +136,7 @@ function switchView(name) {
     b.classList.toggle("active", active);
     b.setAttribute("aria-selected", active ? "true" : "false");
   });
+  document.title = VIEW_TITLES[name] || document.title;
   if (name === "wall") loadMediaWall();
 }
 
@@ -441,6 +450,21 @@ function renderTurnstile() {
 }
 
 /* ============================================================
+   WHATSAPP SHARE
+   ============================================================ */
+function initWhatsappShare() {
+  const btn = $("#shareWhatsapp");
+  if (!btn) return;
+  btn.addEventListener("click", () => {
+    const url = location.href.split("#")[0];
+    const message =
+      `📢 صوتك يهم! شارك رأيك في استبيان مستقبل مركز شباب الأحمدية — ` +
+      `دقيقة واحدة بس وتصويتك آمن وسري.\n\n${url}`;
+    window.open(`https://wa.me/?text=${encodeURIComponent(message)}`, "_blank", "noopener");
+  });
+}
+
+/* ============================================================
    INIT
    ============================================================ */
 function initApp() {
@@ -449,6 +473,7 @@ function initApp() {
   initMediaCapture();
   initInstallBanner();
   initSoundToggle();
+  initWhatsappShare();
   registerServiceWorker();
   renderTurnstile();
 }
