@@ -12,6 +12,14 @@ const $ = (sel, el = document) => el.querySelector(sel);
 const $$ = (sel, el = document) => [...el.querySelectorAll(sel)];
 
 let soundEnabled = true;
+let audioCtx = null;
+
+function unlockAudio() {
+  if (!audioCtx) {
+    try { audioCtx = new (window.AudioContext || window.webkitAudioContext)(); } catch (e) { return; }
+  }
+  if (audioCtx.state === "suspended") audioCtx.resume().catch(() => {});
+}
 
 /* ============================================================
    TOAST
@@ -28,9 +36,9 @@ function toast(msg, ms = 3200) {
    INTRO SEQUENCE
    ============================================================ */
 function playChime() {
-  if (!soundEnabled) return;
+  if (!soundEnabled || !audioCtx || audioCtx.state !== "running") return; // no gesture yet — skip silently, no console warning
   try {
-    const ctx = new (window.AudioContext || window.webkitAudioContext)();
+    const ctx = audioCtx;
     const o = ctx.createOscillator();
     const g = ctx.createGain();
     o.type = "sine";
@@ -439,4 +447,6 @@ function initApp() {
   renderTurnstile();
 }
 
+document.addEventListener("pointerdown", unlockAudio, { once: true });
+document.addEventListener("keydown", unlockAudio, { once: true });
 document.addEventListener("DOMContentLoaded", runIntro);
