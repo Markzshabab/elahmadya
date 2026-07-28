@@ -12,4 +12,4 @@ id = "72e8c72d56ed4cd587adb56393a4da75"
 
 [vars]
 R2_PUBLIC_BASE_URL = "https://pub-3fb0b86037554ed0b842bc258e8a3051.r2.dev"
-FIREBASE_DB_URL = "https://YOUR_PROJECT-default-rtdb.firebaseio.com"
+FIREBASE_DB_URL = "https://markzshabab-4c01b-default-rtdb.firebaseio.com/"
