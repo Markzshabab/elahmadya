@@ -94,6 +94,10 @@ function finishIntro() {
   introFinished = true;
 
   const intro = $("#intro");
+  // Move focus off any element inside #intro (e.g. the Skip button) before
+  // hiding it with aria-hidden, otherwise assistive tech gets a focused-but-hidden element.
+  if (intro.contains(document.activeElement)) document.activeElement.blur();
+
   intro.style.transition = "opacity .6s ease";
   intro.style.opacity = "0";
   setTimeout(() => {
@@ -101,6 +105,8 @@ function finishIntro() {
     intro.setAttribute("aria-hidden", "true");
     $("#app").hidden = false;
     initApp();
+    $("#app").setAttribute("tabindex", "-1");
+    $("#app").focus({ preventScroll: true });
   }, 620);
 }
 
