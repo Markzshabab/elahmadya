@@ -252,8 +252,19 @@
     background:#fff; border-radius:16px; overflow:hidden; box-shadow:var(--shadow-sm);
     border:1px solid rgba(31,61,43,.08); opacity:0; transform:translateY(14px);
     animation:cardIn .5s cubic-bezier(.2,.9,.25,1) forwards;
+    position:relative;
   }
-  .media-item video, .media-item audio{margin:0; border-radius:0;}
+  .media-item .media-frame{position:relative;}
+  .media-item video, .media-item audio{margin:0; border-radius:0; display:block;}
+  .media-item .watermark{
+    position:absolute; inset:0; pointer-events:none; overflow:hidden;
+    display:flex; align-items:center; justify-content:center;
+  }
+  .media-item .watermark span{
+    color:rgba(255,255,255,.5); font-family:var(--font-display); font-weight:800; font-size:11px;
+    transform:rotate(-28deg); white-space:nowrap; text-shadow:0 1px 3px rgba(0,0,0,.5);
+    letter-spacing:.5px;
+  }
   .media-item .tag{
     display:flex; align-items:center; gap:6px; padding:9px 11px; font-size:11.5px; font-weight:700; color:var(--olive-800);
   }
@@ -472,7 +483,7 @@
 <nav class="bottom-nav">
   <button class="nav-item active" id="navSurvey" onclick="showTab('survey')"><span class="ico">📊</span>الاستبيان</button>
   <button class="nav-item" id="navResults" onclick="showTab('results')"><span class="ico">📈</span>النتائج والفيديوهات</button>
-  <a class="nav-item" href="https://facebook.com" target="_blank" rel="noopener"><span class="ico">📘</span>صفحتنا</a>
+  <button class="nav-item" id="navShare" onclick="shareSurvey()"><span class="ico">📤</span>مشاركة</button>
 </nav>
 
 <script>
@@ -770,12 +781,42 @@
     }
     grid.innerHTML = list.map((m,i)=>`
       <div class="media-item" style="animation-delay:${i*70}ms">
-        ${m.mediaType==='video'
-          ? `<video src="${m.mediaUrl}" controls playsinline></video>`
-          : `<audio src="${m.mediaUrl}" controls></audio>`}
+        <div class="media-frame">
+          ${m.mediaType==='video'
+            ? `<video src="${m.mediaUrl}" controls playsinline controlsList="nodownload noremoteplayback"
+                 disablePictureInPicture oncontextmenu="return false"></video>`
+            : `<audio src="${m.mediaUrl}" controls controlsList="nodownload noremoteplayback"
+                 oncontextmenu="return false"></audio>`}
+          ${m.mediaType==='video' ? `<div class="watermark"><span>استبيان مركز شباب الأحمدية</span></div>` : ''}
+        </div>
         <div class="tag">${m.mediaType==='video' ? '📹' : '🎙️'} رأي أحد الأهالي</div>
       </div>
     `).join('');
+  }
+
+  // ============================================================
+  // مشاركة الاستبيان
+  // ============================================================
+  async function shareSurvey(){
+    const shareText = 'السلام عليكم 🌿\nلأنكم من أهلنا ويهمكم قريتنا الأحمدية حبيبنا نشارك ونأخد رأيكم فى الاستبيان ده';
+    const shareUrl = 'https://markzshabab.github.io/elahmadya/';
+    const fullMessage = `${shareText}\n${shareUrl}`;
+
+    if (navigator.share){
+      try {
+        await navigator.share({ title:'استبيان مركز شباب الأحمدية', text: shareText, url: shareUrl });
+      } catch(e) {
+        // المستخدم لغى المشاركة — لا داعي لأي رسالة
+      }
+      return;
+    }
+
+    try {
+      await navigator.clipboard.writeText(fullMessage);
+      showToast('تم نسخ رسالة المشاركة، الصقها وابعتها لمن تحب 📤', 'info');
+    } catch(e) {
+      showToast('انسخ الرابط يدوياً: ' + shareUrl, 'info');
+    }
   }
 
   // ============================================================
