@@ -1,16 +1,11 @@
 /**
  * ==================== معرض الرسائل المسجلة - Gallery Script ====================
  * 
- * ✅ إصدار مصحح - يجلب البيانات الحقيقية من Firebase
+ * ✅ إصدار مصحح - يعرض الميديا المقبولة من Firebase
  * ✅ بدون أسماء المؤلفين
  * ✅ R2 Storage متكامل
  * 
- * R2 Storage Configuration:
- * Base URL: https://pub-3fb0b86037554ed0b842bc258e8a3051.r2.dev
- * Media Path: /media/{id}
- * Categories: media (approved), pending, submissions
- * 
- * Firebase: markzshabab-4c01b-default-rtdb.firebaseio.com
+ * الرابط الصحيح: https://markzshabab.github.io/elahmadya/gallery/index.html
  */
 
 // ==================== Configuration ====================
@@ -51,6 +46,8 @@ const elements = {
 // ==================== Initialization ====================
 
 document.addEventListener("DOMContentLoaded", () => {
+    console.log('🎨 [Gallery] بدء تحميل المعرض...');
+    
     // Cache DOM elements
     elements.grid = document.getElementById('gallery-grid');
     elements.loader = document.getElementById('loading-spinner');
@@ -90,23 +87,24 @@ async function loadGallery() {
     try {
         let data = [];
         
-        console.log('🔄 جاري تحميل البيانات من Firebase...');
+        console.log('🔄 [Gallery] جاري تحميل الميديا المقبولة...');
         
         // 1. Try Firebase REST API Direct (Primary Method)
         data = await fetchFromFirebaseREST();
         
         // 2. Fallback to Worker API
         if (!data || data.length === 0) {
-            console.log('⚠️ Firebase فشل، محاولة Worker API...');
+            console.log('⚠️ [Gallery] Firebase فشل، محاولة Worker API...');
             data = await fetchFromWorker();
         }
         
         if (!data || data.length === 0) {
+            console.log('⚠️ [Gallery] لا توجد ميديا مقبولة');
             showEmptyState();
             return;
         }
 
-        console.log(`✅ تم تحميل ${data.length} عنصر بنجاح`);
+        console.log(`✅ [Gallery] تم تحميل ${data.length} عنصر مقبول`);
         allMediaItems = data;
         
         // Update stats
@@ -116,7 +114,7 @@ async function loadGallery() {
         renderGallery(data);
         
     } catch (error) {
-        console.error('❌ Gallery Error:', error);
+        console.error('❌ [Gallery] Error:', error);
         showErrorState();
     } finally {
         if (elements.loader) {
@@ -129,13 +127,13 @@ async function loadGallery() {
 
 /**
  * جلب البيانات من Firebase باستخدام REST API مباشرة
- * لا يحتاج Firebase SDK - يعمل في أي متصفح!
+ * يعرض فقط العناصر المقبولة (approved/accepted)
  */
 async function fetchFromFirebaseREST() {
     try {
         const url = `${CONFIG.FIREBASE_DB_URL}/${CONFIG.FIREBASE_PATH}.json`;
         
-        console.log('📡 طلب البيانات من:', url);
+        console.log(`📡 [Gallery] طلب البيانات من: ${url}`);
         
         const response = await fetch(url, {
             method: 'GET',
@@ -145,7 +143,7 @@ async function fetchFromFirebaseREST() {
         });
         
         if (!response.ok) {
-            console.error('❌ Firebase HTTP Error:', response.status, response.statusText);
+            console.error(`❌ [Gallery] Firebase HTTP Error: ${response.status}`);
             return [];
         }
         
@@ -156,52 +154,51 @@ async function fetchFromFirebaseREST() {
             Object.keys(data).forEach(key => {
                 const submission = data[key];
                 
-                // شروط العرض:
+                // شروط العرض في المعرض:
                 // 1. الحالة مقبولة (approved أو accepted)
                 // 2. يوجد نوع ميديا (video أو audio)
                 // 3. يوجد معرف الميديا
                 
-                const isApproved = submission.status === 'approved' || 
-                                   submission.status === 'accepted' || 
-                                   submission.status === true;
+                const status = submission.status;
+                const isApproved = status === 'approved' || 
+                                   status === 'accepted' || 
+                                   status === true ||
+                                   status === 'published';
                                    
-                const hasMediaType = submission.mediaType === 'video' || 
-                                    submission.mediaType === 'audio';
+                const mediaType = submission.mediaType;
+                const hasMediaType = mediaType === 'video' || mediaType === 'audio';
                                     
-                const hasMediaId = submission.mediaId || 
-                                  submission.mediaUrl || 
-                                  submission.uuid || 
-                                  submission.id;
+                const mediaId = submission.mediaId || 
+                                submission.uuid || 
+                                submission.id;
                 
-                if (isApproved && hasMediaType && hasMediaId) {
-                    const mediaId = submission.mediaId || 
-                                   submission.uuid || 
-                                   submission.id ||
-                                   extractUuidFromUrl(submission.mediaUrl);
-                    
+                console.log(`🔍 [Gallery] فحص ${key}: status=${status}, type=${mediaType}, hasId=${!!mediaId}, approved=${isApproved}`);
+                
+                if (isApproved && hasMediaType && mediaId) {
                     approvedMedia.push({
                         id: mediaId,
                         title: `مشاركة ${approvedMedia.length + 1}`,
-                        description: getDescriptionByType(submission.mediaType),
-                        mediaType: submission.mediaType,
+                        description: getDescriptionByType(mediaType),
+                        mediaType: mediaType,
                         category: 'approved',
                         timestamp: submission.timestamp || 
                                    submission.createdAt || 
                                    submission.submittedAt || 
                                    new Date().toISOString(),
                         views: submission.views || Math.floor(Math.random() * 200) + 50,
-                        submissionId: key,
-                        // بدون اسم المؤلف - كما طلب المستخدم
+                        submissionId: key
                     });
+                    
+                    console.log(`✅ [Gallery] تمت إضافة: ${mediaId} (${mediaType})`);
                 }
             });
         }
         
-        console.log(`✅ Firebase REST: تم جلب ${approvedMedia.length} عنصر مقبول`);
+        console.log(`✅ [Gallery] Firebase REST: ${approvedMedia.length} عنصر مقبول`);
         return approvedMedia;
         
     } catch (error) {
-        console.error('❌ Firebase REST Error:', error);
+        console.error('❌ [Gallery] Firebase REST Error:', error);
         return [];
     }
 }
@@ -239,7 +236,7 @@ async function fetchFromWorker() {
 
     for (const endpoint of endpoints) {
         try {
-            console.log(`🔄 محاولة Worker: ${endpoint}`);
+            console.log(`🔄 [Gallery] محاولة Worker: ${endpoint}`);
             
             const response = await fetch(endpoint, {
                 method: 'GET',
@@ -262,24 +259,29 @@ async function fetchFromWorker() {
                     mediaArray = result.data;
                 }
                 
-                // تطبيع البيانات - بدون أسماء
-                const normalizedData = mediaArray.map((item, index) => ({
-                    id: item.id || item.mediaId || item.key || item.uuid || generateTempId(),
-                    title: `مشاركة ${index + 1}`,
-                    description: getDescriptionByType(item.mediaType || item.type),
-                    mediaType: item.mediaType || item.type || guessMediaType(item.url),
-                    category: item.category || item.status || 'approved',
-                    timestamp: item.timestamp || item.createdAt || new Date().toISOString(),
-                    views: item.views || item.viewCount || 0,
-                    url: item.url || item.mediaUrl || null
-                }));
+                // تصفية العناصر المقبولة فقط وتطبيع البيانات
+                const normalizedData = mediaArray
+                    .filter(item => {
+                        const status = item.status || item.category || 'approved';
+                        return status === 'approved' || status === 'accepted' || status === 'published';
+                    })
+                    .map((item, index) => ({
+                        id: item.id || item.mediaId || item.key || item.uuid || generateTempId(),
+                        title: `مشاركة ${index + 1}`,
+                        description: getDescriptionByType(item.mediaType || item.type),
+                        mediaType: item.mediaType || item.type || guessMediaType(item.url),
+                        category: 'approved',
+                        timestamp: item.timestamp || item.createdAt || new Date().toISOString(),
+                        views: item.views || item.viewCount || 0,
+                        url: item.url || item.mediaUrl || null
+                    }));
                 
-                console.log(`✅ Worker (${endpoint}): تم جلب ${normalizedData.length} عنصر`);
+                console.log(`✅ [Gallery] Worker (${endpoint}): ${normalizedData.length} عنصر`);
                 return normalizedData;
             }
             
         } catch (error) {
-            console.warn(`⚠️ فشل Endpoint: ${endpoint}`, error.message);
+            console.warn(`⚠️ [Gallery] فشل Endpoint: ${endpoint}`, error.message);
             continue;
         }
     }
@@ -312,6 +314,8 @@ function updateStats(data) {
     const videos = data.filter(item => item.mediaType === 'video').length;
     const audios = data.filter(item => item.mediaType === 'audio').length;
     const views = data.reduce((acc, item) => acc + (item.views || 0), 0);
+
+    console.log(`📊 [Gallery] الإحصائيات: ${videos} فيديو, ${audios} صوت, ${views} مشاهدة`);
 
     if (elements.videoCount) {
         elements.videoCount.textContent = `${videos} فيديو`;
@@ -618,7 +622,7 @@ window.togglePlay = function(index) {
             if (ctrlBtn) ctrlBtn.innerHTML = '<i class="fas fa-pause"></i>';
             videoStates[index].isPlaying = true;
             randomizeWatermark(index);
-        }).catch(e => console.log('Playback error:', e));
+        }).catch(e => console.log('[Gallery] Playback error:', e));
     } else {
         video.pause();
         if (playBtn) playBtn.classList.remove('hidden');
@@ -692,7 +696,6 @@ function randomizeWatermark(index) {
 // ==================== Screen Capture Detection ====================
 
 function detectScreenCapture() {
-    console.warn('Fullscreen mode detected - screen capture may be attempted');
     showWarning();
 }
 
@@ -795,7 +798,7 @@ function showEmptyState() {
         <div class="empty-state">
             <i class="fas fa-video-slash"></i>
             <h3>لا توجد مشاركات مسجلة ومقبولة حالياً</h3>
-            <p>كن أول من يشارك برأيه حول مركز الشباب!</p>
+            <p>المحتوى المقبول من قبل الإدارة سيظهر هنا</p>
         </div>
     `;
 }

@@ -1,8 +1,8 @@
 /**
  * لوحة تحكم الإدارة - El Ahmadiya Survey Admin
- * ✅ إصدار مصحح - يستخدم Firebase REST API مباشرة
- * ✅ جلب البيانات والميديا بشكل موثوق
- * ✅ بدون اعتماد على Firebase SDK
+ * ✅ إصدار مصحح - يحل مشكلة اختفاء البيانات بعد القبول
+ * ✅ يستخدم Firebase REST API مباشرة
+ * ✅ يحافظ على جميع البيانات في العرض
  */
 
 const CONFIG = {
@@ -21,7 +21,7 @@ const admin = {
     token: sessionStorage.getItem('admin_token') || null,
     allData: [],
     filteredData: [],
-    currentFilter: 'all',
+    currentFilter: 'all', // الافتراضي: عرض الكل
 
     // ==================== تسجيل الدخول ====================
     
@@ -48,6 +48,7 @@ const admin = {
     
     async fetchData() {
         try {
+            console.log('🔄 [Admin] جاري تحميل البيانات...');
             this.showToast('جاري تحميل البيانات...');
             
             // Try Firebase REST API first (Primary)
@@ -55,37 +56,68 @@ const admin = {
             
             // Fallback to Worker if Firebase fails
             if (!data || data.length === 0) {
-                console.log('⚠️ Firebase فشل، محاولة Worker...');
+                console.log('⚠️ [Admin] Firebase فشل، محاولة Worker...');
                 data = await this.fetchFromWorker();
             }
             
             if (data && data.length > 0) {
+                console.log(`✅ [Admin] تم تحميل ${data.length} تسجيل`);
                 this.allData = data;
-                this.filteredData = [...data];
-                this.renderTable(data);
+                
+                // ⭐ تصفية حسب الفلتر الحالي (ليس دائماً الكل)
+                this.applyCurrentFilter();
+                
                 this.updateStats(data);
                 this.showDashboard();
                 this.showToast(`✅ تم تحميل ${data.length} تسجيل`);
             } else {
-                this.showToast('⚠️ لا توجد بيانات', 'error');
+                console.log('⚠️ [Admin] لا توجد بيانات');
+                this.showToast('⚠️ لا توجد بيانات حالياً', 'error');
                 this.showEmptyTable();
             }
             
         } catch (error) {
-            console.error('❌ Fetch Error:', error);
+            console.error('❌ [Admin] Fetch Error:', error);
             this.showToast('خطأ في تحميل البيانات: ' + error.message, 'error');
+            this.showEmptyTable();
         }
     },
     
     /**
+     * تطبيق الفلتر الحالي على البيانات
+     */
+    applyCurrentFilter() {
+        switch(this.currentFilter) {
+            case 'all':
+                this.filteredData = [...this.allData];
+                break;
+            case 'pending':
+                this.filteredData = this.allData.filter(s => s.status === 'pending');
+                break;
+            case 'approved':
+                this.filteredData = this.allData.filter(s => s.status === 'approved' || s.status === 'accepted');
+                break;
+            case 'rejected':
+                this.filteredData = this.allData.filter(s => s.status === 'rejected');
+                break;
+            case 'has-media':
+                this.filteredData = this.allData.filter(s => s.hasPlayableMedia);
+                break;
+            default:
+                this.filteredData = [...this.allData];
+        }
+        
+        this.renderTable(this.filteredData);
+    },
+    
+    /**
      * جلب البيانات من Firebase باستخدام REST API مباشرة
-     * الطريقة الأكثر موثوقية - لا تحتاج SDK
      */
     async fetchFromFirebaseREST() {
         try {
             const url = `${CONFIG.FIREBASE_DB_URL}/${CONFIG.FIREBASE_PATH}.json`;
             
-            console.log('📡 Admin: جلب البيانات من Firebase:', url);
+            console.log('📡 [Admin] طلب البيانات من:', url);
             
             const response = await fetch(url, {
                 method: 'GET',
@@ -93,7 +125,7 @@ const admin = {
             });
             
             if (!response.ok) {
-                console.error('❌ Firebase HTTP Error:', response.status);
+                console.error('❌ [Admin] Firebase HTTP Error:', response.status);
                 return [];
             }
             
@@ -116,19 +148,22 @@ const admin = {
                         mediaUrl: this.buildMediaUrl(submission),
                         mediaType: submission.mediaType || null,
                         mediaSize: submission.mediaSize || 0,
-                        status: submission.status || 'pending',
+                        status: submission.status || 'pending', // ← مهم: حالة صحيحة
                         userAgent: submission.userAgent?.substring(0, 100) || '-',
                         reviewedAt: submission.reviewedAt || null,
-                        hasPlayableMedia: !!(submission.mediaId || submission.mediaUrl || submission.uuid)
+                        hasPlayableMedia: !!(submission.mediaId || submission.mediaUrl || submission.uuid),
+                        // حفظ البيانات الأصلية للمرجعية
+                        mediaId: submission.mediaId || submission.uuid || null,
+                        originalData: submission
                     });
                 });
             }
             
-            console.log(`✅ Firebase REST: تم جلب ${submissions.length} تسجيل`);
+            console.log(`✅ [Admin] Firebase REST: تم جلب ${submissions.length} تسجيل`);
             return submissions;
             
         } catch (error) {
-            console.error('❌ Firebase REST Error:', error);
+            console.error('❌ [Admin] Firebase REST Error:', error);
             return [];
         }
     },
@@ -152,9 +187,6 @@ const admin = {
         return null;
     },
     
-    /**
-     * تبسيط IP Hash
-     */
     hashIP(ip) {
         if (!ip || ip === '-') return 'unknown';
         return ip.substring(0, 12) + '...';
@@ -175,13 +207,13 @@ const admin = {
             
             if (response.ok) {
                 const data = await response.json();
-                console.log(`✅ Worker: تم جلب ${data.length || 0} تسجيل`);
+                console.log(`✅ [Admin] Worker: تم جلب ${data.length || 0} تسجيل`);
                 return Array.isArray(data) ? data : [];
             }
             
             return [];
         } catch (error) {
-            console.error('❌ Worker Error:', error);
+            console.error('❌ [Admin] Worker Error:', error);
             return [];
         }
     },
@@ -199,6 +231,8 @@ const admin = {
         const approved = data.filter(s => s.status === 'approved' || s.status === 'accepted').length;
         const rejected = data.filter(s => s.status === 'rejected').length;
         const withMedia = data.filter(s => s.hasPlayableMedia).length;
+
+        console.log(`📊 [Admin] الإحصائيات: الكل=${total}, قيد=${pending}, مقبول=${approved}, مرفوض=${rejected}, ميديا=${withMedia}`);
 
         document.getElementById('total-votes').textContent = total;
         document.getElementById('pending-count').textContent = pending;
@@ -264,8 +298,8 @@ const admin = {
                 <tr>
                     <td colspan="10" class="empty-state">
                         <i class="fas fa-inbox"></i>
-                        <h3>لا توجد بيانات حالياً</h3>
-                        <p>سيظهر هنا التصويتات والمساهمات عند استقبالها</p>
+                        <h3>لا توجد بيانات في هذا الفلتر</h3>
+                        <p>جرب تغيير الفلتر أو تحديث الصفحة</p>
                     </td>
                 </tr>
             `;
@@ -327,7 +361,7 @@ const admin = {
         const ip = JSON.stringify(item.ip);
         let buttons = '';
         
-        // Accept Button
+        // Accept Button - يظهر فقط إذا لم يُقبل بعد
         if (item.status !== 'approved' && item.status !== 'accepted') {
             buttons += `
                 <button class="action-btn approve" onclick='event.stopPropagation(); admin.updateStatus(${id}, "accepted")' title="✅ قبول ونشر">
@@ -336,7 +370,7 @@ const admin = {
             `;
         }
         
-        // Reject Button
+        // Reject Button - يظهر فقط إذا لم يُرفض بعد
         if (item.status !== 'rejected') {
             buttons += `
                 <button class="action-btn reject" onclick='event.stopPropagation(); admin.updateStatus(${id}, "rejected")' title="❌ رفض">
@@ -364,7 +398,7 @@ const admin = {
         return `<div class="action-buttons" onclick="event.stopPropagation()">${buttons}</div>`;
     },
 
-    // ==================== Modal كبير لتشغيل الميديو ====================
+    // ==================== Modal لتشغيل الميديو ====================
     
     openMediaModal(submissionId, mediaType) {
         const item = this.allData.find(s => s.id === submissionId);
@@ -374,7 +408,6 @@ const admin = {
         const container = document.getElementById('modal-media-container');
         const info = document.getElementById('modal-info');
 
-        // رابط الميديا من R2
         const mediaSrc = item.mediaUrl || `${CONFIG.R2_BASE_URL}/media/${submissionId}`;
         
         const isVideo = mediaType === 'video';
@@ -455,49 +488,29 @@ const admin = {
     searchTable() {
         const query = document.getElementById('search-box')?.value.toLowerCase();
         if (!query) {
-            this.filteredData = [...this.allData];
+            this.applyCurrentFilter();
         } else {
-            this.filteredData = this.allData.filter(item => 
+            this.filteredData = this.filteredData.filter(item => 
                 (item.ip || '').toLowerCase().includes(query) ||
                 (item.timestampISO || '').includes(query) ||
                 JSON.stringify(item.votes || {}).toLowerCase().includes(query)
             );
+            this.renderTable(this.filteredData);
         }
-        this.renderTable(this.filteredData);
     },
     
     filterBy(filter, btn) {
-        this.currentFilter = filter;
+        this.currentFilter = filter; // ← حفظ الفلتر الحالي
         
         // Update button states
         document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
         if (btn) btn.classList.add('active');
         
-        // Filter data
-        switch(filter) {
-            case 'all':
-                this.filteredData = [...this.allData];
-                break;
-            case 'pending':
-                this.filteredData = this.allData.filter(s => s.status === 'pending');
-                break;
-            case 'approved':
-                this.filteredData = this.allData.filter(s => s.status === 'approved' || s.status === 'accepted');
-                break;
-            case 'rejected':
-                this.filteredData = this.allData.filter(s => s.status === 'rejected');
-                break;
-            case 'has-media':
-                this.filteredData = this.allData.filter(s => s.hasPlayableMedia);
-                break;
-            default:
-                this.filteredData = [...this.allData];
-        }
-        
-        this.renderTable(this.filteredData);
+        // Apply filter and re-render
+        this.applyCurrentFilter();
     },
 
-    // ==================== إجراءات الأدمن ====================
+    // ==================== إجراءات الأدمن (مُحسّنة) ====================
     
     async updateStatus(id, newStatus) {
         const statusText = newStatus === 'accepted' || newStatus === 'approved' ? 'قبول ونشر' : 'رفض';
@@ -506,26 +519,46 @@ const admin = {
 
         try {
             this.showToast(`جاري ${statusText}...`);
+            console.log(`📝 [Admin] تحديث حالة ${id} إلى ${newStatus}`);
             
             // Try Firebase REST API first
             try {
                 const updateUrl = `${CONFIG.FIREBASE_DB_URL}/${CONFIG.FIREBASE_PATH}/${id}.json`;
+                const finalStatus = newStatus === 'accepted' ? 'approved' : newStatus;
+                
+                console.log(`🔗 [Admin] PATCH: ${updateUrl}`);
+                
                 const response = await fetch(updateUrl, {
                     method: 'PATCH',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ 
-                        status: newStatus === 'accepted' ? 'approved' : newStatus,
-                        updatedAt: new Date().toISOString()
+                        status: finalStatus,
+                        updatedAt: new Date().toISOString(),
+                        reviewedAt: Date.now(),
+                        reviewedBy: 'admin'
                     })
                 });
                 
                 if (response.ok) {
+                    const result = await response.json();
+                    console.log('✅ [Admin] تم التحديث في Firebase:', result);
+                    
                     this.showToast(`✅ تم ${statusText} بنجاح!`);
-                    setTimeout(() => this.fetchData(), 500);
+                    
+                    // تحديث البيانات محلياً فوراً قبل إعادة الجلب
+                    const itemIndex = this.allData.findIndex(s => s.id === id);
+                    if (itemIndex !== -1) {
+                        this.allData[itemIndex].status = finalStatus;
+                    }
+                    
+                    // إعادة تطبيق الفلتر الحالي (يحافظ على العرض)
+                    setTimeout(() => this.applyCurrentFilter(), 300);
                     return;
+                } else {
+                    console.error('❌ [Admin] Firebase PATCH failed:', response.status);
                 }
             } catch (firebaseError) {
-                console.warn('⚠️ Firebase update failed, trying Worker:', firebaseError);
+                console.warn('⚠️ [Admin] Firebase update failed, trying Worker:', firebaseError);
             }
             
             // Fallback to Worker
@@ -547,6 +580,7 @@ const admin = {
                 this.showToast(result.error || 'فشل العملية', 'error');
             }
         } catch (e) {
+            console.error('❌ [Admin] Update Error:', e);
             this.showToast('خطأ: ' + e.message, 'error');
         }
     },
@@ -568,7 +602,7 @@ const admin = {
                     return;
                 }
             } catch (firebaseError) {
-                console.warn('⚠️ Firebase delete failed, trying Worker:', firebaseError);
+                console.warn('⚠️ [Admin] Firebase delete failed:', firebaseError);
             }
             
             // Fallback to Worker
@@ -625,7 +659,7 @@ const admin = {
     // ==================== تصدير CSV ====================
     
     exportCSV() {
-        if (!this.filteredData.length) return this.showToast('لا توجد بيانات', 'error');
+        if (!this.filteredData.length) return this.showToast('لا توجد بيانات للتصدير', 'error');
 
         const flatData = this.filteredData.map((item, index) => ({
             '#': index + 1,
