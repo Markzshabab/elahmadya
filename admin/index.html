@@ -3,55 +3,604 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>لوحة تحكم الإدارة - استبيان الأحمدية</title>
-    <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;800&display=swap" rel="stylesheet">
+    <title>لوحة تحكم الإدارة - استبيان مركز الأحمدية</title>
+    
+    <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;800&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link rel="stylesheet" href="../style.css">
+    
     <style>
-        body { align-items: flex-start; padding: 20px; overflow-y: auto; }
-        .admin-container { width: 100%; max-width: 1200px; margin: 0 auto; display: none; }
-        .login-container { display: flex; flex-direction: column; justify-content: center; height: 80vh; }
-        .top-bar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 30px; }
-        .data-table { width: 100%; border-collapse: collapse; margin-top: 20px; background: rgba(0,0,0,0.2); border-radius: 12px; overflow: hidden; font-size: 0.95rem; }
-        .data-table th, .data-table td { padding: 15px; text-align: center; border-bottom: 1px solid var(--glass-border); }
-        .data-table th { background: rgba(0,242,254,0.1); color: var(--primary); }
-        .controls { display: flex; gap: 15px; margin-bottom: 20px; flex-wrap: wrap; }
+        * { font-family: 'Cairo', sans-serif; }
+        
+        body {
+            align-items: flex-start;
+            padding: 20px;
+            overflow-y: auto;
+            background: linear-gradient(135deg, #0a1628 0%, #1a3a2a 100%);
+            min-height: 100vh;
+        }
+
+        /* شاشة تسجيل الدخول */
+        .login-container {
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            min-height: 80vh;
+        }
+
+        .login-box {
+            background: rgba(255,255,255,0.05);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(26, 95, 42, 0.3);
+            border-radius: 24px;
+            padding: 40px;
+            max-width: 400px;
+            width: 100%;
+            text-align: center;
+        }
+
+        .login-box h2 {
+            color: #f4c430;
+            margin-bottom: 30px;
+            font-size: 1.8rem;
+        }
+
+        .login-input {
+            width: 100%;
+            padding: 15px 20px;
+            margin-bottom: 20px;
+            border: 2px solid rgba(26, 95, 42, 0.5);
+            border-radius: 12px;
+            background: rgba(0,0,0,0.3);
+            color: white;
+            font-size: 16px;
+            text-align: center;
+            direction: ltr;
+        }
+
+        .login-input:focus {
+            outline: none;
+            border-color: #f4c430;
+            box-shadow: 0 0 20px rgba(244, 196, 48, 0.3);
+        }
+
+        /* لوحة التحكم */
+        .admin-container {
+            display: none;
+            width: 100%;
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+
+        .top-bar {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 25px;
+            flex-wrap: wrap;
+            gap: 15px;
+        }
+
+        .top-bar h2 {
+            color: #f4c430;
+            font-size: 1.8rem;
+            margin: 0;
+        }
+
+        /* بطاقات الإحصائيات */
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin-bottom: 25px;
+        }
+
+        .stat-card {
+            background: rgba(26, 95, 42, 0.2);
+            border: 1px solid rgba(26, 95, 42, 0.4);
+            border-radius: 16px;
+            padding: 20px;
+            text-align: center;
+        }
+
+        .stat-card .number {
+            font-size: 2rem;
+            font-weight: bold;
+            color: #f4c430;
+        }
+
+        .stat-card .label {
+            color: #aaa;
+            font-size: 0.9rem;
+            margin-top: 5px;
+        }
+
+        /* أدوات التحكم */
+        .controls {
+            display: flex;
+            gap: 12px;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+            align-items: center;
+        }
+
+        .search-box {
+            flex: 1;
+            min-width: 250px;
+            padding: 12px 18px;
+            border: 2px solid rgba(26, 95, 42, 0.5);
+            border-radius: 12px;
+            background: rgba(0,0,0,0.3);
+            color: white;
+            font-size: 14px;
+        }
+
+        .search-box:focus {
+            outline: none;
+            border-color: #f4c430;
+        }
+
+        /* فلتر الحالة */
+        .filter-buttons {
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+        }
+
+        .filter-btn {
+            padding: 8px 16px;
+            border: 2px solid transparent;
+            border-radius: 20px;
+            cursor: pointer;
+            font-size: 13px;
+            transition: all 0.3s ease;
+            background: rgba(255,255,255,0.1);
+            color: white;
+        }
+
+        .filter-btn.active {
+            border-color: #f4c430;
+            background: rgba(244, 196, 48, 0.2);
+        }
+
+        .filter-btn.all { --color: #60a5fa; }
+        .filter-btn.pending { --color: #f59e0b; }
+        .filter-btn.approved { --color: #10b981; }
+        .filter-btn.rejected { --color: #ef4444; }
+        .filter-btn.has-media { --color: #8b5cf6; }
+
+        /* جدول البيانات */
+        .table-container {
+            background: rgba(0,0,0,0.3);
+            border-radius: 16px;
+            overflow: hidden;
+            border: 1px solid rgba(26, 95, 42, 0.3);
+        }
+
+        .data-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 14px;
+        }
+
+        .data-table th {
+            background: rgba(26, 95, 42, 0.4);
+            color: #f4c430;
+            padding: 15px 12px;
+            text-align: center;
+            font-weight: 600;
+            position: sticky;
+            top: 0;
+        }
+
+        .data-table td {
+            padding: 12px;
+            text-align: center;
+            border-bottom: 1px solid rgba(255,255,255,0.05);
+            vertical-align: middle;
+        }
+
+        .data-table tr:hover {
+            background: rgba(26, 95, 42, 0.1);
+        }
+
+        /* عرض IP */
+        .ip-badge {
+            background: rgba(96, 165, 250, 0.2);
+            color: #60a5fa;
+            padding: 4px 10px;
+            border-radius: 6px;
+            font-family: monospace;
+            font-size: 12px;
+            direction: ltr;
+        }
+
+        .ip-hash {
+            background: rgba(139, 92, 246, 0.2);
+            color: #a78bfa;
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-family: monospace;
+            font-size: 11px;
+            direction: ltr;
+            display: block;
+            margin-top: 4px;
+        }
+
+        /* عرض التصويتات */
+        .vote-badge {
+            padding: 6px 12px;
+            border-radius: 8px;
+            font-size: 13px;
+            font-weight: 600;
+        }
+
+        .vote-badge.positive {
+            background: rgba(16, 185, 129, 0.2);
+            color: #34d399;
+        }
+
+        .vote-badge.negative {
+            background: rgba(239, 68, 68, 0.2);
+            color: #f87171;
+        }
+
+        /* حالة الميديا */
+        .status-badge {
+            padding: 5px 12px;
+            border-radius: 15px;
+            font-size: 12px;
+            font-weight: 600;
+        }
+
+        .status-pending {
+            background: rgba(245, 158, 11, 0.2);
+            color: #fbbf24;
+        }
+
+        .status-approved {
+            background: rgba(16, 185, 129, 0.2);
+            color: #34d399;
+        }
+
+        .status-rejected {
+            background: rgba(239, 68, 68, 0.2);
+            color: #f87171;
+        }
+
+        /* مشغل الميديا */
+        .media-preview {
+            max-width: 200px;
+            border-radius: 10px;
+            overflow: hidden;
+            background: #000;
+        }
+
+        .media-preview video,
+        .media-preview audio {
+            width: 100%;
+            display: block;
+        }
+
+        .no-media {
+            color: #666;
+            font-style: italic;
+        }
+
+        /* أزرار الإجراءات */
+        .action-buttons {
+            display: flex;
+            gap: 6px;
+            justify-content: center;
+            flex-wrap: wrap;
+        }
+
+        .action-btn {
+            padding: 7px 12px;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 12px;
+            transition: all 0.2s ease;
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+        }
+
+        .action-btn.approve {
+            background: rgba(16, 185, 129, 0.2);
+            color: #34d399;
+            border: 1px solid rgba(16, 185, 129, 0.4);
+        }
+
+        .action-btn.approve:hover {
+            background: rgba(16, 185, 129, 0.4);
+        }
+
+        .action-btn.reject {
+            background: rgba(239, 68, 68, 0.2);
+            color: #f87171;
+            border: 1px solid rgba(239, 68, 68, 0.4);
+        }
+
+        .action-btn.reject:hover {
+            background: rgba(239, 68, 68, 0.4);
+        }
+
+        .action-btn.delete {
+            background: rgba(107, 114, 128, 0.2);
+            color: #9ca3af;
+            border: 1px solid rgba(107, 114, 128, 0.4);
+        }
+
+        .action-btn.delete:hover {
+            background: rgba(239, 68, 68, 0.3);
+            color: #f87171;
+        }
+
+        .action-btn.block {
+            background: rgba(239, 68, 68, 0.2);
+            color: #f87171;
+            border: 1px solid rgba(239, 68, 68, 0.4);
+        }
+
+        .action-btn.block:hover {
+            background: rgba(239, 68, 68, 0.4);
+        }
+
+        /* Modal لعرض الفيديو الكامل */
+        .modal-overlay {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0,0,0,0.9);
+            z-index: 9999;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+        }
+
+        .modal-overlay.active {
+            display: flex;
+        }
+
+        .modal-content {
+            max-width: 800px;
+            width: 100%;
+            background: rgba(26, 95, 42, 0.1);
+            border-radius: 20px;
+            padding: 20px;
+            border: 1px solid rgba(26, 95, 42, 0.5);
+        }
+
+        .modal-content video,
+        .modal-content audio {
+            width: 100%;
+            border-radius: 12px;
+        }
+
+        .modal-close {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            background: rgba(239, 68, 68, 0.8);
+            border: none;
+            color: white;
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            cursor: pointer;
+            font-size: 20px;
+        }
+
+        .modal-info {
+            margin-top: 15px;
+            color: #ccc;
+            font-size: 14px;
+        }
+
+        /* رسالة فارغة */
+        .empty-state {
+            text-align: center;
+            padding: 60px 20px;
+            color: #666;
+        }
+
+        .empty-state i {
+            font-size: 4rem;
+            margin-bottom: 20px;
+            opacity: 0.3;
+        }
+
+        /* Loading */
+        .loading-spinner {
+            text-align: center;
+            padding: 40px;
+        }
+
+        .loading-spinner i {
+            font-size: 2rem;
+            color: #f4c430;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            from { transform: rotate(0deg); }
+            to { transform: rotate(360deg); }
+        }
+
+        /* Responsive */
+        @media (max-width: 768px) {
+            .data-table {
+                font-size: 12px;
+            }
+            
+            .data-table th,
+            .data-table td {
+                padding: 8px 6px;
+            }
+
+            .action-buttons {
+                flex-direction: column;
+            }
+
+            .stats-grid {
+                grid-template-columns: repeat(2, 1fr);
+            }
+        }
+
+        /* Toast notification */
+        .toast {
+            position: fixed;
+            top: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(26, 95, 42, 0.95);
+            color: white;
+            padding: 15px 30px;
+            border-radius: 12px;
+            z-index: 10000;
+            display: none;
+            animation: slideDown 0.3s ease;
+        }
+
+        .toast.error {
+            background: rgba(239, 68, 68, 0.95);
+        }
+
+        @keyframes slideDown {
+            from { opacity: 0; transform: translateX(-50%) translateY(-20px); }
+            to { opacity: 1; transform: translateX(-50%) translateY(0); }
+        }
     </style>
 </head>
 <body>
-    <div id="login-screen" class="glass-panel login-container active-screen">
-        <h2><i class="fas fa-lock"></i> تسجيل دخول الإدارة</h2>
-        <input type="password" id="admin-pass" placeholder="أدخل كلمة المرور" class="btn-outline" style="background: transparent; color: white; text-align: center; margin-bottom: 20px;">
-        <button class="btn-primary" onclick="admin.login()">دخول</button>
+
+    <!-- Toast Notification -->
+    <div class="toast" id="toast"></div>
+
+    <!-- شاشة تسجيل الدخول -->
+    <div id="login-screen" class="login-container active-screen">
+        <div class="login-box glass-panel">
+            <i class="fas fa-shield-alt fa-3x" style="color: #f4c430; margin-bottom: 20px;"></i>
+            <h2>لوحة تحكم الإدارة</h2>
+            <p style="color: #888; margin-bottom: 25px;">استبيان مركز شباب قرية الأحمدية</p>
+            
+            <input type="password" 
+                   id="admin-pass" 
+                   class="login-input" 
+                   placeholder="أدخل كلمة المرور"
+                   onkeypress="if(event.key==='Enter') admin.login()">
+            
+            <button class="btn-primary" onclick="admin.login()" style="width: 100%; padding: 15px;">
+                <i class="fas fa-sign-in-alt"></i> دخول لوحة التحكم
+            </button>
+
+            <p style="margin-top: 20px; font-size: 12px; color: #666;">
+                <i class="fas fa-info-circle"></i> 
+                كلمة المرور هي الوقت الحالي بالقاهرة (مثال: 1430)
+            </p>
+        </div>
     </div>
 
-    <div id="dashboard-screen" class="admin-container glass-panel">
+    <!-- لوحة التحكم -->
+    <div id="dashboard-screen" class="admin-container">
+        
+        <!-- الشريط العلوي -->
         <div class="top-bar">
-            <h2>لوحة تحكم الاستبيان</h2>
-            <button class="btn-danger" style="width: auto; margin:0;" onclick="admin.logout()"><i class="fas fa-sign-out-alt"></i> خروج</button>
+            <h2><i class="fas fa-chart-line"></i> لوحة تحكم الاستبيان</h2>
+            <button class="btn-danger" onclick="admin.logout()" style="padding: 10px 20px;">
+                <i class="fas fa-sign-out-alt"></i> خروج
+            </button>
         </div>
 
+        <!-- إحصائيات سريعة -->
+        <div class="stats-grid" id="stats-grid">
+            <div class="stat-card">
+                <div class="number" id="total-votes">0</div>
+                <div class="label"><i class="fas fa-vote-yea"></i> إجمالي التصويتات</div>
+            </div>
+            <div class="stat-card">
+                <div class="number" id="pending-count">0</div>
+                <div class="label"><i class="fas fa-clock"></i> قيد المراجعة</div>
+            </div>
+            <div class="stat-card">
+                <div class="number" id="approved-count">0</div>
+                <div class="label"><i class="fas fa-check-circle"></i> مقبولة</div>
+            </div>
+            <div class="stat-card">
+                <div class="number" id="blocked-count">0</div>
+                <div class="label"><i class="fas fa-ban"></i> IPs محظورة</div>
+            </div>
+        </div>
+
+        <!-- أدوات البحث والفلترة -->
         <div class="controls">
-            <button class="btn-primary" style="width: auto;" onclick="admin.exportCSV()"><i class="fas fa-file-csv"></i> تصدير CSV</button>
-            <input type="text" id="search-box" placeholder="ابحث في الردود..." class="btn-outline" onkeyup="admin.searchTable()" style="width: 300px; padding: 10px; margin:0;">
+            <input type="text" 
+                   id="search-box" 
+                   class="search-box" 
+                   placeholder="🔍 ابحث عن IP، تاريخ، أو محتوى..."
+                   onkeyup="admin.searchTable()">
+            
+            <div class="filter-buttons">
+                <button class="filter-btn all active" onclick="admin.filterBy('all', this)">الكل (0)</button>
+                <button class="filter-btn pending" onclick="admin.filterBy('pending', this)">⏳ قيد المراجعة (0)</button>
+                <button class="filter-btn approved" onclick="admin.filterBy('approved', this)">✅ مقبولة (0)</button>
+                <button class="filter-btn rejected" onclick="admin.filterBy('rejected', this)">❌ مرفوضة (0)</button>
+                <button class="filter-btn has-media" onclick="admin.filterBy('has-media', this)">🎬 بها ميديا (0)</button>
+            </div>
+
+            <button class="btn-primary" onclick="admin.exportCSV()" style="padding: 10px 20px;">
+                <i class="fas fa-file-csv"></i> تصدير CSV
+            </button>
+            
+            <button class="btn-outline" onclick="admin.fetchData()" style="padding: 10px 20px;">
+                <i class="fas fa-sync-alt"></i> تحديث
+            </button>
         </div>
 
-        <div style="overflow-x: auto;">
+        <!-- جدول البيانات -->
+        <div class="table-container">
             <table class="data-table" id="submissions-table">
                 <thead>
                     <tr>
+                        <th>#</th>
                         <th>التاريخ والوقت</th>
                         <th>عنوان IP</th>
-                        <th>السؤال الأول (الرضا)</th>
-                        <th>السؤال الثاني (الشباب)</th>
-                        <th>الرسالة المسجلة (فيديو/صوت)</th>
-                        <th>الإجراءات والتحكم</th>
+                        <th>IP Hash</th>
+                        <th>Q1 (الرضا)</th>
+                        <th>Q2 (تأييد الشباب)</th>
+                        <th>Q3 (الاختيار)</th>
+                        <th>المحتوى المسجل</th>
+                        <th>الحالة</th>
+                        <th>الإجراءات</th>
                     </tr>
                 </thead>
-                <tbody id="table-body"></tbody>
+                <tbody id="table-body">
+                    <tr>
+                        <td colspan="10" class="loading-spinner">
+                            <i class="fas fa-spinner fa-spin"></i>
+                            <p style="margin-top: 10px;">جاري تحميل البيانات...</p>
+                        </td>
+                    </tr>
+                </tbody>
             </table>
         </div>
     </div>
+
+    <!-- Modal لعرض الميديا -->
+    <div class="modal-overlay" id="media-modal" onclick="closeModal(event)">
+        <button class="modal-close" onclick="closeModal()"><i class="fas fa-times"></i></button>
+        <div class="modal-content" onclick="event.stopPropagation()">
+            <div id="modal-media-container"></div>
+            <div class="modal-info" id="modal-info"></div>
+        </div>
+    </div>
+
     <script src="admin.js"></script>
 </body>
 </html>
