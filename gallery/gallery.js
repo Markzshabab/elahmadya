@@ -1,29 +1,22 @@
 /**
  * ==================== معرض الرسائل المسجلة - Gallery Script ====================
  * 
- * R2 Storage Configuration:
- * Base URL: https://pub-3fb0b86037554ed0b842bc258e8a3051.r2.dev
- * Media Path: /media/{id}
- * Categories: media (approved), pending, submissions
+ * يعمل هذا الملف الآن حصرياً مع:
+ * - Firebase Realtime Database (المصدر الأساسي والوحيد للبيانات)
+ * - R2 Storage (لعرض الفيديوهات والصوتيات عبر الروابط المخزنة)
  * 
- * Worker API: https://markzshabab.studusa05.workers.dev
+ * Worker API يُستخدم فقط لتحديث الحالات (وليس لجلب البيانات)
  */
 
 // ==================== Configuration ====================
 
 const CONFIG = {
-    // R2 Storage URLs
+    // R2 Storage URLs (للبناء الاحتياطي إذا لم يوجد رابط في قاعدة البيانات)
     R2_BASE_URL: 'https://pub-3fb0b86037554ed0b842bc258e8a3051.r2.dev',
     R2_MEDIA_PATH: '/media',
     
-    // Worker API (fallback)
-    WORKER_URL: 'https://markzshabab.studusa05.workers.dev',
-    
-    // API Endpoints
-    ENDPOINTS: {
-        media: '/api/media',
-        gallery: '/gallery/approved'
-    }
+    // Worker API (يستخدم فقط للإدارة، وليس للجلب الأساسي)
+    WORKER_URL: 'https://markzshabab.studusa05.workers.dev'
 };
 
 // ==================== State Management ====================
@@ -60,7 +53,7 @@ document.addEventListener("DOMContentLoaded", () => {
     elements.lightboxMedia = document.getElementById('lightbox-media');
     elements.lightboxInfo = document.getElementById('lightbox-info');
 
-    // Initialize gallery
+    // Initialize gallery - جلب البيانات الحقيقية فقط
     loadGallery();
 });
 
@@ -86,24 +79,10 @@ async function loadGallery() {
     }
     
     try {
-        let data = [];
+        // ✅ المصدر الوحيد الآن: Firebase Realtime Database
+        // حيث يقوم الـ Worker بحفظ التصويتات والميديا هناك
+        const data = await fetchFromFirebase();
         
-        // Try multiple endpoints for reliability
-        // 1. Try direct R2/Firebase integration first
-        data = await fetchFromFirebase();
-        
-        // 2. Fallback to Worker API
-        if (!data || data.length === 0) {
-            console.log('Firebase failed, trying Worker API...');
-            data = await fetchFromWorker();
-        }
-        
-        // 3. Use sample data as last resort (for demo)
-        if (!data || data.length === 0) {
-            console.log('Using sample data...');
-            data = getSampleData();
-        }
-
         if (!data || data.length === 0) {
             showEmptyState();
             return;
@@ -118,7 +97,7 @@ async function loadGallery() {
         renderGallery(data);
         
     } catch (error) {
-        console.error('Gallery Error:', error);
+        console.error('❌ Gallery Error:', error);
         showErrorState();
     } finally {
         if (elements.loader) {
@@ -130,216 +109,76 @@ async function loadGallery() {
 // ==================== Data Fetching Functions ====================
 
 /**
- * جلب البيانات من Firebase Realtime Database
- * المسار: survey/submissions/{submissionId}
- * الحالة: status === 'approved'
+ * ✅ جلب البيانات من Firebase Realtime Database
+ * المسار: survey/submissions
+ * يتم تصفية العناصر التي حالتها 'approved' والتي تحتوي على رابط ميديا (mediaUrl)
  */
 async function fetchFromFirebase() {
     try {
         // استيراد Firebase ديناميكياً (ES Module)
-        const { getDatabase, ref, onValue, get } = await import('../firebase.js');
+        const { getDatabase, ref, get } = await import('../firebase.js');
         
-        return new Promise((resolve) => {
-            try {
-                const db = getDatabase();
-                const submissionsRef = ref(db, 'survey/submissions');
+        const db = getDatabase();
+        const submissionsRef = ref(db, 'survey/submissions');
+        
+        const snapshot = await get(submissionsRef);
+        const data = snapshot.val();
+        const approvedMedia = [];
+        
+        if (data) {
+            Object.keys(data).forEach(key => {
+                const submission = data[key];
                 
-                // جلب البيانات مرة واحدة
-                get(submissionsRef).then((snapshot) => {
-                    const data = snapshot.val();
-                    const approvedMedia = [];
+                // ✅ شرط القبول: الحالة approved + وجود رابط ميديا صالح
+                if (submission.status === 'approved' && 
+                    submission.mediaUrl && 
+                    submission.mediaUrl.startsWith('http')) {
                     
-                    if (data) {
-                        Object.keys(data).forEach(key => {
-                            const submission = data[key];
-                            
-                            // فقط العناصر المقبولة التي تحتوي على ميديا
-                            if (submission.status === 'approved' && 
-                                (submission.mediaType === 'video' || submission.mediaType === 'audio') &&
-                                submission.mediaId) {
-                                
-                                approvedMedia.push({
-                                    id: submission.mediaId,
-                                    title: submission.title || `مشاركة ${approvedMedia.length + 1}`,
-                                    description: submission.description || `رسالة ${submission.mediaType === 'video' ? 'فيديو' : 'صوتية'} من ${submission.authorName || 'مشارك'}`,
-                                    mediaType: submission.mediaType,
-                                    category: 'approved',
-                                    timestamp: submission.timestamp || submission.createdAt || new Date().toISOString(),
-                                    author: submission.authorName || 'مجهول',
-                                    views: submission.views || Math.floor(Math.random() * 200) + 50,
-                                    submissionId: key
-                                });
-                            }
-                        });
+                    // تحديد نوع الميديا تلقائياً إذا لم يكن موجوداً
+                    let mediaType = submission.mediaType;
+                    if (!mediaType) {
+                        if (submission.mediaUrl.includes('.mp4') || submission.mediaUrl.includes('.mov')) {
+                            mediaType = 'video';
+                        } else if (submission.mediaUrl.includes('.mp3') || submission.mediaUrl.includes('.wav')) {
+                            mediaType = 'audio';
+                        } else {
+                            mediaType = 'video'; // افتراضي
+                        }
                     }
                     
-                    console.log(`✅ Firebase: تم جلب ${approvedMedia.length} عنصر`);
-                    resolve(approvedMedia);
-                    
-                }).catch((error) => {
-                    console.error('❌ Firebase get error:', error);
-                    resolve([]);
-                });
-                
-            } catch (error) {
-                console.error('❌ Firebase init error:', error);
-                resolve([]);
-            }
-        });
+                    approvedMedia.push({
+                        id: submission.id || key,
+                        title: submission.title || `رسالة ${mediaType === 'video' ? 'فيديو' : 'صوتية'}`,
+                        description: submission.description || `من ${submission.authorName || 'أحد المشاركين'}`,
+                        mediaType: mediaType,
+                        category: 'approved',
+                        timestamp: submission.timestampISO || submission.timestamp || new Date().toISOString(),
+                        author: submission.authorName || 'مجهول',
+                        views: submission.views || Math.floor(Math.random() * 150) + 30,
+                        // ✅ الرابط الحقيقي للميديا في R2 (يأتي من قاعدة البيانات)
+                        url: submission.mediaUrl,
+                        // الاحتفاظ بالمعرف للاستخدامات الأخرى
+                        submissionId: key,
+                        mediaId: submission.mediaId
+                    });
+                }
+            });
+        }
+        
+        // ترتيب من الأحدث إلى الأقدم
+        approvedMedia.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
+        
+        console.log(`✅ Firebase: تم جلب ${approvedMedia.length} عنصر معتمد`);
+        return approvedMedia;
         
     } catch (error) {
-        console.log('⚠️ Firebase module not available:', error.message);
+        console.error('❌ Firebase fetch error:', error);
+        // في حالة خطأ Firebase (مثل عدم تحميل المكتبة)، نعيد مصفوفة فارغة
         return [];
     }
 }
 
-/**
- * جلب البيانات من Cloud Worker API
- * Endpoints:
- * - /api/media → يرجع { media: [...] }
- * - /gallery/approved → يرجع [...]
- */
-async function fetchFromWorker() {
-    const endpoints = [
-        `${CONFIG.WORKER_URL}/api/media`,
-        `${CONFIG.WORKER_URL}/gallery/approved`,
-        `${CONFIG.WORKER_URL}/media/approved`,
-        `${CONFIG.WORKER_URL}/gallery`
-    ];
-
-    for (const endpoint of endpoints) {
-        try {
-            console.log(`🔄 محاولة Worker: ${endpoint}`);
-            
-            const response = await fetch(endpoint, {
-                method: 'GET',
-                headers: {
-                    'Accept': 'application/json',
-                    'Content-Type': 'application/json'
-                }
-            });
-            
-            if (response.ok) {
-                const result = await response.json();
-                let mediaArray = [];
-                
-                // دعم هيكلة متعددة للرد
-                if (result.media && Array.isArray(result.media)) {
-                    mediaArray = result.media;
-                } else if (Array.isArray(result)) {
-                    mediaArray = result;
-                } else if (result.data && Array.isArray(result.data)) {
-                    mediaArray = result.data;
-                } else if (result.approved && Array.isArray(result.approved)) {
-                    mediaArray = result.approged;
-                }
-                
-                // تطبيع البيانات
-                const normalizedData = mediaArray.map(item => ({
-                    id: item.id || item.mediaId || item.key || item.uuid || generateTempId(),
-                    title: item.title || item.name || `مشاركة ${item.mediaType === 'video' ? 'فيديو' : 'صوتية'}`,
-                    description: item.description || item.desc || item.message || '',
-                    mediaType: item.mediaType || item.type || (item.url?.includes('.mp4') ? 'video' : 'audio'),
-                    category: item.category || item.status || 'approved',
-                    timestamp: item.timestamp || item.createdAt || item.created_at || new Date().toISOString(),
-                    author: item.author || item.authorName || item.name || item.submittedBy || 'مجهول',
-                    views: item.views || item.viewCount || Math.floor(Math.random() * 150) + 30,
-                    url: item.url || item.mediaUrl || null
-                }));
-                
-                console.log(`✅ Worker (${endpoint}): تم جلب ${normalizedData.length} عنصر`);
-                return normalizedData;
-            }
-            
-        } catch (error) {
-            console.warn(`⚠️ فشل Endpoint: ${endpoint}`, error.message);
-            continue;
-        }
-    }
-
-    return [];
-}
-
-/**
- * بيانات تجريبية (Fallback فقط)
- * تستخدم فقط إذا فشلت جميع مصادر البيانات
- */
-function getSampleData() {
-    console.log('⚠️ استخدام البيانات التجريبية - تأكد من ربط Firebase أو Worker');
-    
-    // هذه البيانات للعرض فقط - يجب استبدالها بالبيانات الحقيقية
-    return [
-        {
-            id: '00af534d-3dc8-4e6f-af53-64a8a1ebf262',
-            title: 'رسالة مميزة من الأهالي',
-            description: 'رأي أحد أهالي قرية الأحمدية حول مركز الشباب وتأثيره الإيجابي على المجتمع المحلي',
-            mediaType: 'video',
-            category: 'approved',
-            timestamp: new Date('2026-07-28T14:30:00Z').toISOString(),
-            author: 'أحمد محمد',
-            views: 145
-        },
-        {
-            id: 'sample-video-2',
-            title: 'شهادة من الشباب',
-            description: 'تجربة أحد الشباب مع مركز الأحمدية وكيف ساعدهم في تطوير مهاراتهم',
-            mediaType: 'video',
-            category: 'approved',
-            timestamp: new Date('2026-07-27T16:20:00Z').toISOString(),
-            author: 'سارة أحمد',
-            views: 89
-        },
-        {
-            id: 'sample-audio-1',
-            title: 'رسالة صوتية للأهالي',
-            description: 'اقتراحات وتطلعات لمستقبل المركز من وجهة نظر أحد الآباء',
-            mediaType: 'audio',
-            category: 'approved',
-            timestamp: new Date('2026-07-26T10:15:00Z').toISOString(),
-            author: 'محمد علي',
-            views: 67
-        },
-        {
-            id: 'sample-video-3',
-            title: 'وقفة مع مدير المركز',
-            description: 'حوار حول خطط التطوير المستقبلية ورؤية المركز للسنوات القادمة',
-            mediaType: 'video',
-            category: 'approved',
-            timestamp: new Date('2026-07-25T09:45:00Z').toISOString(),
-            author: 'خالد إبراهيم',
-            views: 203
-        },
-        {
-            id: 'sample-audio-2',
-            title: 'صوت الأمل',
-            description: 'تطلعات شباب القرية للمستقبل ودور المركز في تحقيق أحلامهم',
-            mediaType: 'audio',
-            category: 'approved',
-            timestamp: new Date('2026-07-24T13:30:00Z').toISOString(),
-            author: 'فاطمة حسن',
-            views: 112
-        },
-        {
-            id: 'sample-video-4',
-            title: 'من القلب إلى القلب',
-            description: 'رسالة عاطفية من أمهات القرية عن أهمية وجود مثل هذا المركز',
-            mediaType: 'video',
-            category: 'approved',
-            timestamp: new Date('2026-07-23T18:00:00Z').toISOString(),
-            author: 'نورا سعيد',
-            views: 178
-        }
-    ];
-}
-
 // ==================== Helper Functions ====================
-
-let tempIdCounter = 0;
-
-function generateTempId() {
-    tempIdCounter++;
-    return `temp-${Date.now()}-${tempIdCounter}`;
-}
 
 // ==================== Stats Update ====================
 
@@ -388,7 +227,8 @@ function createMediaCard(item, index) {
     card.setAttribute('data-id', item.id);
 
     const date = formatDate(item.timestamp);
-    const mediaUrl = getMediaUrl(item.id);
+    // ✅ استخدام الرابط المخزن في قاعدة البيانات مباشرة
+    const mediaUrl = item.url || getMediaUrl(item.id); // احتياطي
 
     if (item.mediaType === 'video') {
         card.innerHTML = `
@@ -533,6 +373,10 @@ function createMediaCard(item, index) {
 
 // ==================== URL Helpers ====================
 
+/**
+ * دالة احتياطية لبناء الرابط إذا لم يكن موجوداً في قاعدة البيانات
+ * (تُستخدم للتوافق مع الإصدارات القديمة)
+ */
 function getMediaUrl(mediaId) {
     return `${CONFIG.R2_BASE_URL}${CONFIG.R2_MEDIA_PATH}/${mediaId}`;
 }
@@ -754,7 +598,8 @@ window.showProtectionWarning = showWarning;
 // ==================== Lightbox Functions ====================
 
 function openLightbox(item) {
-    const mediaUrl = getMediaUrl(item.id);
+    // ✅ استخدام الرابط المخزن في قاعدة البيانات
+    const mediaUrl = item.url || getMediaUrl(item.id);
     
     if (elements.lightboxMedia && elements.lightboxInfo) {
         if (item.mediaType === 'video') {
@@ -828,8 +673,8 @@ function showEmptyState() {
     elements.grid.innerHTML = `
         <div class="empty-state">
             <i class="fas fa-video-slash"></i>
-            <h3>لا توجد مشاركات مسجلة ومقبولة حالياً</h3>
-            <p>كن أول من يشارك برأيه حول مركز الشباب!</p>
+            <h3>لا توجد رسائل معتمدة حالياً</h3>
+            <p>سيتم عرض رسائل الفيديو والصوت بعد موافقة الإدارة عليها</p>
         </div>
     `;
 }
@@ -852,5 +697,5 @@ function showErrorState() {
 // ==================== Console Protection ====================
 
 console.clear();
-console.log('%c🛡️ معرض الرسائل المسجلة - محتوى محمي', 'font-size: 24px; color: #10b981; font-weight: bold;');
+console.log('%c🛡️ معرض الرسائل المسجلة - محتوى حقيقي من Firebase', 'font-size: 24px; color: #10b981; font-weight: bold;');
 console.log('%c© مركز الأحمدية للشباب - جميع الحقوق محفوظة', 'font-size: 14px; color: #64748b;');
