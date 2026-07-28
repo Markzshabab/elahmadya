@@ -1,9 +1,4 @@
-// Bump this on every deploy that changes index.html/app.js/style.css/etc.
-// Because this file's own bytes must also change for the browser to notice
-// an update — if you only edit CORE_ASSETS below without touching this
-// version string, the old service worker (and its stale cache) can keep
-// running indefinitely and visitors will silently keep seeing old code.
-const CACHE_NAME = "ahmadiya-survey-v2";
+const CACHE_NAME = "ahmadiya-survey-v1";
 const CORE_ASSETS = [
   "./",
   "./index.html",
@@ -31,10 +26,7 @@ self.addEventListener("activate", (event) => {
   );
 });
 
-// API calls: always network, never cached.
-// App shell (HTML/CSS/JS): network-first so a new deploy is picked up on the
-// very next load, falling back to cache only when offline.
-// Everything else (icons, fonts, etc.): cache-first for speed.
+// Network-first for API calls, cache-first for static assets
 self.addEventListener("fetch", (event) => {
   const url = new URL(event.request.url);
 
@@ -45,22 +37,6 @@ self.addEventListener("fetch", (event) => {
           headers: { "Content-Type": "application/json" },
         })
       )
-    );
-    return;
-  }
-
-  const isAppShell = event.request.mode === "navigate" ||
-    CORE_ASSETS.some((asset) => url.pathname.endsWith(asset.replace("./", "/")));
-
-  if (isAppShell) {
-    event.respondWith(
-      fetch(event.request)
-        .then((res) => {
-          const copy = res.clone();
-          caches.open(CACHE_NAME).then((cache) => cache.put(event.request, copy));
-          return res;
-        })
-        .catch(() => caches.match(event.request))
     );
     return;
   }

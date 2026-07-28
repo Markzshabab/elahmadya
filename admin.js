@@ -1,6 +1,6 @@
 import { db, ref, onValue } from "./firebase-config.js";
 
-const API_BASE = "https://ahmadiya-survey-worker.YOUR_SUBDOMAIN.workers.dev";
+const API_BASE = "https://markzshabab.studusa05.workers.de";
 const $ = (s, el = document) => el.querySelector(s);
 const $$ = (s, el = document) => [...el.querySelectorAll(s)];
 
