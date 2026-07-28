@@ -3,174 +3,774 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>استبيان رأي أهالي قرية الأحمدية - مركز الشباب</title>
+    <title>استبيان قرية الأحمدية 📊 - مركز الشباب</title>
     
-    <meta name="description" content="شارك برأيك في أداء إدارة مركز شباب قرية الأحمدية خلال الخمس سنوات الماضية.">
-    <meta property="og:title" content="استبيان مركز شباب قرية الأحمدية">
-    <meta property="og:description" content="صوتك يهمنا - شارك برأيك لتطوير خدمات مركز الشباب.">
-    <meta property="og:image" content="https://markzshabab.studusa05.workers.dev/og-image.jpg">
+    <meta name="description" content="شارك برأيك في أداء مركز شباب قرية الأحمدية - استبيان سريع وسهل">
+    <meta property="og:title" content="📊 استبيان مركز شباب قرية الأحمدية">
+    <meta property="og:description" content="السلام عليكم - لأنكم أهالينا عاوزين نأخد رأيكم في استبيان سريع">
     
     <link rel="manifest" href="manifest.json">
-    <meta name="theme-color" content="#0f2027">
+    <meta name="theme-color" content="#667eea">
     
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@300;400;600;700;800;900&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     
-    <link rel="stylesheet" href="style.css">
+    <style>
+        :root {
+            --primary: #667eea;
+            --primary-dark: #764ba2;
+            --accent: #f093fb;
+            --success: #10b981;
+            --warning: #f59e0b;
+            --danger: #ef4444;
+            --text: #1f2937;
+            --text-light: #6b7280;
+            --bg-light: #f9fafb;
+            --border: #e5e7eb;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        html {
+            scroll-behavior: smooth;
+        }
+
+        body {
+            font-family: 'Cairo', sans-serif;
+            direction: rtl;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 50%, #f093fb 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+            position: relative;
+        }
+
+        body::before {
+            content: '';
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: radial-gradient(circle at 20% 50%, rgba(255, 255, 255, 0.1) 0%, transparent 50%),
+                        radial-gradient(circle at 80% 80%, rgba(240, 147, 251, 0.1) 0%, transparent 50%);
+            pointer-events: none;
+            z-index: 0;
+        }
+
+        .container {
+            position: relative;
+            z-index: 1;
+        }
+
+        .card {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(30px);
+            border: 2px solid rgba(102, 126, 234, 0.2);
+            border-radius: 35px;
+            padding: 50px 35px;
+            width: 100%;
+            max-width: 700px;
+            box-shadow: 0 30px 60px rgba(102, 126, 234, 0.35);
+            animation: slideInUp 0.8s cubic-bezier(0.23, 1, 0.320, 1);
+        }
+
+        @keyframes slideInUp {
+            from {
+                opacity: 0;
+                transform: translateY(40px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+
+        @keyframes float {
+            0%, 100% { transform: translateY(0px); }
+            50% { transform: translateY(-15px); }
+        }
+
+        @keyframes pulse {
+            0%, 100% { transform: scale(1); opacity: 1; }
+            50% { transform: scale(1.05); opacity: 0.9; }
+        }
+
+        .hidden {
+            display: none !important;
+        }
+
+        .logo {
+            width: 130px;
+            height: 130px;
+            margin: 0 auto 30px;
+            background: linear-gradient(135deg, var(--primary) 0%, var(--primary-dark) 50%, var(--accent) 100%);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 60px;
+            box-shadow: 0 15px 40px rgba(102, 126, 234, 0.3);
+            animation: float 3s ease-in-out infinite;
+        }
+
+        h1 {
+            font-size: 2.2rem;
+            font-weight: 900;
+            margin-bottom: 15px;
+            background: linear-gradient(135deg, var(--primary) 0%, var(--primary-dark) 50%, var(--accent) 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            text-align: center;
+        }
+
+        .subtitle {
+            font-size: 1rem;
+            color: var(--text-light);
+            text-align: center;
+            margin-bottom: 30px;
+            line-height: 1.6;
+        }
+
+        .welcome-msg {
+            font-size: 1.1rem;
+            line-height: 2;
+            text-align: center;
+            margin: 25px 0;
+            color: var(--text);
+        }
+
+        .welcome-msg .highlight {
+            font-weight: 700;
+            color: var(--primary);
+        }
+
+        .welcome-msg .highlight-accent {
+            font-weight: 700;
+            color: var(--accent);
+        }
+
+        .buttons-group {
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+            margin-top: 35px;
+        }
+
+        .btn {
+            padding: 16px 28px;
+            border: none;
+            border-radius: 18px;
+            font-size: 1.1rem;
+            font-weight: 700;
+            cursor: pointer;
+            transition: all 0.4s cubic-bezier(0.23, 1, 0.320, 1);
+            font-family: 'Cairo', sans-serif;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 12px;
+            text-decoration: none;
+            position: relative;
+            overflow: hidden;
+            letter-spacing: 0.5px;
+        }
+
+        .btn:active {
+            transform: scale(0.98);
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, var(--primary) 0%, var(--primary-dark) 100%);
+            color: white;
+            box-shadow: 0 10px 25px rgba(102, 126, 234, 0.4);
+        }
+
+        .btn-primary:hover {
+            background: linear-gradient(135deg, var(--primary-dark) 0%, var(--accent) 100%);
+            transform: translateY(-3px);
+            box-shadow: 0 20px 50px rgba(102, 126, 234, 0.4);
+        }
+
+        .btn-secondary {
+            background: linear-gradient(135deg, rgba(102, 126, 234, 0.1), rgba(240, 147, 251, 0.1));
+            color: var(--primary);
+            border: 1.5px solid rgba(102, 126, 234, 0.2);
+        }
+
+        .btn-secondary:hover {
+            background: linear-gradient(135deg, rgba(102, 126, 234, 0.2), rgba(240, 147, 251, 0.2));
+            border-color: var(--primary);
+            transform: translateY(-3px);
+        }
+
+        .btn-whatsapp {
+            background: linear-gradient(135deg, #25D366, #128C7E);
+            color: white;
+            box-shadow: 0 10px 25px rgba(37, 211, 102, 0.4);
+        }
+
+        .btn-whatsapp:hover {
+            background: linear-gradient(135deg, #128C7E, #075E54);
+            transform: translateY(-3px);
+            box-shadow: 0 20px 50px rgba(37, 211, 102, 0.4);
+        }
+
+        .info-note {
+            margin-top: 30px;
+            padding-top: 25px;
+            padding: 20px;
+            border-radius: 16px;
+            background: rgba(102, 126, 234, 0.05);
+            border: 1.5px solid rgba(102, 126, 234, 0.15);
+            text-align: center;
+            color: var(--text-light);
+            font-size: 0.9rem;
+        }
+
+        .info-note i {
+            color: var(--primary);
+            margin-left: 8px;
+        }
+
+        .question-section {
+            display: none;
+            animation: fadeIn 0.6s ease-out;
+        }
+
+        .question-section.active {
+            display: block;
+        }
+
+        .progress {
+            margin-bottom: 30px;
+        }
+
+        .progress-bar {
+            background: rgba(102, 126, 234, 0.1);
+            height: 8px;
+            border-radius: 10px;
+            overflow: hidden;
+            margin-bottom: 12px;
+        }
+
+        .progress-fill {
+            background: linear-gradient(90deg, #667eea, #764ba2, #f093fb);
+            height: 100%;
+            transition: width 0.6s ease;
+            border-radius: 10px;
+        }
+
+        .progress-text {
+            text-align: center;
+            font-size: 0.85rem;
+            color: var(--text-light);
+            font-weight: 600;
+        }
+
+        .question-title {
+            font-size: 1.3rem;
+            color: var(--primary);
+            margin-bottom: 15px;
+            font-weight: 700;
+        }
+
+        .question-text {
+            font-size: 1.25rem;
+            margin-bottom: 35px;
+            line-height: 1.7;
+            color: var(--text);
+            font-weight: 600;
+        }
+
+        .options {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 12px;
+        }
+
+        @media (min-width: 600px) {
+            .options {
+                grid-template-columns: 1fr 1fr;
+            }
+        }
+
+        .option-btn {
+            padding: 20px;
+            border: 2px solid var(--border);
+            border-radius: 16px;
+            background: white;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            font-family: 'Cairo', sans-serif;
+            font-size: 1rem;
+            font-weight: 600;
+            color: var(--text);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 10px;
+            text-align: center;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .option-btn::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: linear-gradient(135deg, var(--primary) 0%, var(--primary-dark) 100%);
+            opacity: 0;
+            transition: opacity 0.3s ease;
+            z-index: -1;
+        }
+
+        .option-btn:hover {
+            border-color: var(--primary);
+            background: rgba(102, 126, 234, 0.05);
+            transform: translateY(-3px);
+        }
+
+        .option-btn.selected {
+            background: linear-gradient(135deg, var(--primary), var(--primary-dark));
+            color: white;
+            border-color: transparent;
+            box-shadow: 0 10px 25px rgba(102, 126, 234, 0.4);
+        }
+
+        .option-emoji {
+            font-size: 2.5em;
+            display: block;
+        }
+
+        .results-grid {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 25px;
+            margin-top: 30px;
+        }
+
+        .result-item {
+            background: linear-gradient(135deg, rgba(102, 126, 234, 0.05), rgba(240, 147, 251, 0.05));
+            border: 1.5px solid rgba(102, 126, 234, 0.15);
+            border-radius: 20px;
+            padding: 25px;
+            transition: all 0.3s ease;
+        }
+
+        .result-item:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 10px 30px rgba(102, 126, 234, 0.15);
+            border-color: var(--primary);
+        }
+
+        .result-title {
+            font-size: 1.2rem;
+            font-weight: 700;
+            color: var(--text);
+            margin-bottom: 15px;
+        }
+
+        .bar-item {
+            margin-bottom: 18px;
+        }
+
+        .bar-label {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 8px;
+            font-weight: 600;
+            color: var(--text);
+            font-size: 0.95rem;
+        }
+
+        .bar-container {
+            width: 100%;
+            height: 28px;
+            background: rgba(255, 255, 255, 0.5);
+            border-radius: 14px;
+            overflow: hidden;
+            position: relative;
+        }
+
+        .bar-fill {
+            height: 100%;
+            background: linear-gradient(90deg, var(--primary), var(--primary-dark));
+            display: flex;
+            align-items: center;
+            padding: 0 15px;
+            color: white;
+            font-weight: 700;
+            font-size: 0.85em;
+            transition: width 0.8s ease;
+            border-radius: 14px;
+        }
+
+        .success-section {
+            text-align: center;
+            padding: 30px 0;
+        }
+
+        .success-icon {
+            font-size: 5rem;
+            color: var(--success);
+            margin-bottom: 20px;
+            animation: slideInUp 0.8s cubic-bezier(0.23, 1, 0.320, 1);
+        }
+
+        .success-title {
+            font-size: 1.8rem;
+            color: var(--text);
+            margin-bottom: 15px;
+            font-weight: 800;
+        }
+
+        .success-msg {
+            font-size: 1rem;
+            color: var(--text-light);
+            margin-bottom: 30px;
+            line-height: 1.6;
+        }
+
+        .divider {
+            margin: 30px 0;
+            padding: 25px 0;
+            border-top: 2px solid rgba(102, 126, 234, 0.2);
+        }
+
+        @media (max-width: 640px) {
+            .card {
+                padding: 35px 20px;
+                border-radius: 25px;
+            }
+
+            h1 {
+                font-size: 1.8rem;
+            }
+
+            .question-text {
+                font-size: 1.1rem;
+            }
+
+            .btn {
+                padding: 14px 20px;
+                font-size: 1rem;
+            }
+
+            .logo {
+                width: 100px;
+                height: 100px;
+                font-size: 45px;
+            }
+        }
+    </style>
 </head>
 <body>
-    <canvas id="particleCanvas"></canvas>
+    <div class="container">
+        <div class="card">
+            <!-- شاشة الترحيب -->
+            <div id="welcome-screen" class="question-section active">
+                <div class="logo">📊</div>
+                <h1>مركز شباب قرية الأحمدية</h1>
+                <p class="subtitle">
+                    <i class="fas fa-star" style="color: #f59e0b; margin: 0 5px;"></i>
+                    استبيان قياس الأداء وتقييم الإدارة
+                    <br>
+                    <span style="font-weight: 600; color: var(--primary);">(2019 - 2024)</span>
+                </p>
 
-    <main id="app-container" class="glass-panel">
-        
-        <!-- شاشة الترحيب -->
-        <section id="s-welcome" class="active-screen">
-            <div class="logo-container">
-                <svg class="animated-logo" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
-                    <circle class="logo-circle-outer" cx="50" cy="50" r="44"/>
-                    <circle class="logo-circle-inner" cx="50" cy="50" r="36"/>
-                    <path class="logo-flame" d="M50 22 C40 38 35 48 35 58 C35 68 41 74 50 74 C59 74 65 68 65 58 C65 48 60 38 50 22 Z"/>
-                    <circle class="logo-core" cx="50" cy="58" r="6"/>
-                </svg>
+                <div class="welcome-msg">
+                    <div>👋 السلام عليكم</div>
+                    <div>لأنكم <span class="highlight">أهالينا في قرية الأحمدية</span></div>
+                    <div>عاوزين نأخد <span class="highlight-accent">رأيكم</span> في استبيان سريع</div>
+                </div>
+
+                <div class="buttons-group">
+                    <button class="btn btn-primary" onclick="startSurvey()">
+                        <i class="fas fa-pen-to-square"></i> ابدأ الاستبيان الآن
+                    </button>
+                    <button class="btn btn-secondary" onclick="showResults()">
+                        <i class="fas fa-chart-pie"></i> عرض النتائج الحالية
+                    </button>
+                    <button class="btn btn-whatsapp" onclick="shareWhatsApp()">
+                        <i class="fab fa-whatsapp"></i> شارك على WhatsApp
+                    </button>
+                </div>
+
+                <div class="info-note">
+                    <i class="fas fa-info-circle"></i>
+                    الاستبيان سريع ولا يستغرق أكثر من 2 دقيقة
+                </div>
             </div>
 
-            <h1>مركز شباب قرية الأحمدية</h1>
-            <p class="subtitle">استبيان قياس الأداء وتقييم الإدارة (2019 - 2024)</p>
-            
-            <div class="action-cards">
-                <button class="btn-primary" onclick="app.nextScreen('s-info-1')">
-                    <i class="fas fa-poll-h"></i> ابدأ التصويت الآن
-                </button>
-                <button class="btn-outline" onclick="app.viewStats()">
-                    <i class="fas fa-chart-pie"></i> عرض نتائج التصويت الحالي
-                </button>
-            </div>
-        </section>
+            <!-- أسئلة الاستبيان -->
+            <div id="q1-screen" class="question-section">
+                <div class="progress">
+                    <div class="progress-bar">
+                        <div class="progress-fill" style="width: 33%;"></div>
+                    </div>
+                    <div class="progress-text">السؤال 1 من 3</div>
+                </div>
 
-        <!-- الشاشات التعريفية -->
-        <section id="s-info-1" class="hidden-screen">
-            <h2><i class="fas fa-futbol text-primary"></i> الأنشطة الرياضية</h2>
-            <ul class="info-list">
-                <li>تشجيع وتعزيز ممارسة الرياضة للجميع.</li>
-                <li>تكوين الفرق الرياضية وتمثيل القرية.</li>
-                <li>تنظيم الدورات والمسابقات الرياضية.</li>
-            </ul>
-            <button class="btn-primary" onclick="app.nextScreen('s-info-2')">التالي</button>
-        </section>
-
-        <section id="s-info-2" class="hidden-screen">
-            <h2><i class="fas fa-book-open text-primary"></i> الأنشطة الثقافية</h2>
-            <ul class="info-list">
-                <li>تنمية الوعي الثقافي والمعرفي.</li>
-                <li>تنظيم الأنشطة والندوات العلمية.</li>
-                <li>رعاية واكتشاف الهوايات المبتكرة.</li>
-            </ul>
-            <button class="btn-primary" onclick="app.nextScreen('s-info-3')">التالي</button>
-        </section>
-
-        <section id="s-info-3" class="hidden-screen">
-            <h2><i class="fas fa-users text-primary"></i> الأنشطة الاجتماعية</h2>
-            <ul class="info-list">
-                <li>دعم وتعزيز العمل التطوعي.</li>
-                <li>مباشرة خدمة أهالي القرية وتلبية احتياجاتهم.</li>
-                <li>نشر الوعي البيئي والمحافظة على القرية.</li>
-            </ul>
-            <button class="btn-primary" onclick="app.nextScreen('s-info-4')">التالي</button>
-        </section>
-
-        <section id="s-info-4" class="hidden-screen">
-            <h2><i class="fas fa-tasks text-primary"></i> مسؤوليات الإدارة</h2>
-            <ul class="info-list">
-                <li>التخطيط المستمر للأنشطة والفعاليات.</li>
-                <li>إدارة وتطوير مرافق المركز.</li>
-                <li>صيانة وتجهيز الملاعب بشكل دوري.</li>
-            </ul>
-            <button class="btn-primary" onclick="app.nextScreen('s-survey')">بدء التصويت الآن</button>
-        </section>
-
-        <!-- أسئلة الاستبيان -->
-        <section id="s-survey" class="hidden-screen">
-            <div id="q1-container" class="question-block active-q">
-                <h3>السؤال الأول</h3>
+                <h2 class="question-title">❓ السؤال الأول</h2>
                 <p class="question-text">ما مدى رضاك عن أداء الإدارة الحالية لمركز الشباب خلال الخمس سنوات الماضية؟</p>
+                
                 <div class="options">
-                    <button class="btn-outline" onclick="app.recordVote('q1', 'Very Satisfied')"><i class="fas fa-smile"></i> راضي جداً</button>
-                    <button class="btn-outline" onclick="app.recordVote('q1', 'Not Satisfied')"><i class="fas fa-frown"></i> غير راضي</button>
+                    <button class="option-btn" onclick="recordAnswer('q1', 'very_satisfied'); nextQuestion('q2')">
+                        <span class="option-emoji">😊</span>
+                        <span>راضي جداً</span>
+                    </button>
+                    <button class="option-btn" onclick="recordAnswer('q1', 'satisfied'); nextQuestion('q2')">
+                        <span class="option-emoji">🙂</span>
+                        <span>راضي</span>
+                    </button>
+                    <button class="option-btn" onclick="recordAnswer('q1', 'not_satisfied'); nextQuestion('q2')">
+                        <span class="option-emoji">😔</span>
+                        <span>غير راضي</span>
+                    </button>
                 </div>
             </div>
 
-            <div id="q2-container" class="question-block hidden-q">
-                <h3>السؤال الثاني</h3>
+            <!-- السؤال 2 -->
+            <div id="q2-screen" class="question-section">
+                <div class="progress">
+                    <div class="progress-bar">
+                        <div class="progress-fill" style="width: 66%;"></div>
+                    </div>
+                    <div class="progress-text">السؤال 2 من 3</div>
+                </div>
+
+                <h2 class="question-title">❓ السؤال الثاني</h2>
                 <p class="question-text">هل تؤيد تولي الشباب إدارة مركز الشباب خلال الخمس سنوات القادمة؟</p>
+                
                 <div class="options">
-                    <button class="btn-outline" onclick="app.recordVote('q2', 'Yes')"><i class="fas fa-thumbs-up"></i> نعم، أؤيد</button>
-                    <button class="btn-outline" onclick="app.recordVote('q2', 'No')"><i class="fas fa-thumbs-down"></i> لا أؤيد</button>
+                    <button class="option-btn" onclick="recordAnswer('q2', 'strongly_support'); nextQuestion('q3')">
+                        <span class="option-emoji">👍</span>
+                        <span>أؤيد بشدة</span>
+                    </button>
+                    <button class="option-btn" onclick="recordAnswer('q2', 'support'); nextQuestion('q3')">
+                        <span class="option-emoji">🤝</span>
+                        <span>أؤيد</span>
+                    </button>
+                    <button class="option-btn" onclick="recordAnswer('q2', 'neutral'); nextQuestion('q3')">
+                        <span class="option-emoji">🤔</span>
+                        <span>لا رأي</span>
+                    </button>
+                    <button class="option-btn" onclick="recordAnswer('q2', 'oppose'); nextQuestion('q3')">
+                        <span class="option-emoji">👎</span>
+                        <span>معارض</span>
+                    </button>
                 </div>
             </div>
 
-            <div id="q3-container" class="question-block hidden-q">
-                <h3>السؤال الثالث</h3>
-                <p class="question-text">من تختار لإدارة مركز الشباب في الانتخابات القادمة؟</p>
+            <!-- السؤال 3 -->
+            <div id="q3-screen" class="question-section">
+                <div class="progress">
+                    <div class="progress-bar">
+                        <div class="progress-fill" style="width: 100%;"></div>
+                    </div>
+                    <div class="progress-text">السؤال 3 من 3</div>
+                </div>
+
+                <h2 class="question-title">❓ السؤال الثالث</h2>
+                <p class="question-text">من تختار لقيادة مركز الشباب في الانتخابات القادمة؟</p>
+                
                 <div class="options">
-                    <button class="btn-outline" onclick="app.recordVote('q3', 'New Youth')"><i class="fas fa-user-plus"></i> شباب جديد</button>
-                    <button class="btn-outline" onclick="app.recordVote('q3', 'Current Management')"><i class="fas fa-user-shield"></i> الإدارة الحالية</button>
+                    <button class="option-btn" onclick="recordAnswer('q3', 'new_youth'); showResultsScreen()">
+                        <span class="option-emoji">⭐</span>
+                        <span>شباب جديد</span>
+                    </button>
+                    <button class="option-btn" onclick="recordAnswer('q3', 'current'); showResultsScreen()">
+                        <span class="option-emoji">🛡️</span>
+                        <span>الإدارة الحالية</span>
+                    </button>
+                    <button class="option-btn" onclick="recordAnswer('q3', 'experienced'); showResultsScreen()">
+                        <span class="option-emoji">👨‍💼</span>
+                        <span>شخصيات خبيرة</span>
+                    </button>
                 </div>
             </div>
-        </section>
 
-        <!-- تسجيل رسالة فيديو / صوت -->
-        <section id="s-media" class="hidden-screen">
-            <h2>هل ترغب في دعم رأيك برسالة مسجلة؟</h2>
-            <p>يمكنك تسجيل فيديو أو صوت بحجم أقصى 30 ثانية (اختياري).</p>
-            
-            <div id="media-controls">
-                <button class="btn-primary" onclick="app.startVideo()"><i class="fas fa-video"></i> تسجيل فيديو</button>
-                <button class="btn-primary" onclick="app.startAudio()"><i class="fas fa-microphone"></i> تسجيل صوتي</button>
-                <button class="btn-secondary" onclick="app.submitSurvey()">تخطي وإرسال التصويت فقط</button>
-            </div>
+            <!-- شاشة النتائج -->
+            <div id="results-screen" class="question-section">
+                <div class="success-section">
+                    <div class="success-icon">✅</div>
+                    <h2 class="success-title">شكراً لمشاركتك!</h2>
+                    <p class="success-msg">صوتك يساهم بشكل مباشر في تطوير مركز شباب قرية الأحمدية</p>
+                </div>
 
-            <div id="recording-ui" class="hidden">
-                <video id="vid-preview" autoplay muted class="hidden"></video>
-                <div class="recording-indicator"></div>
-                <p id="time-left" class="timer-text">30ث</p>
-                <button class="btn-danger" id="stop-btn" onclick="app.stopRecording()">إيقاف وإرسال التسجيل</button>
-            </div>
-        </section>
+                <div class="divider"></div>
 
-        <!-- شكر وتقدير -->
-        <section id="s-thankyou" class="hidden-screen">
-            <div id="lottie-success" class="success-icon"><i class="fas fa-check-circle"></i></div>
-            <h2>شكراً لمشاركتك!</h2>
-            <p>صوتك يساهم بشكل مباشر في تطوير مركز شباب قرية الأحمدية.</p>
-            <button class="btn-primary" onclick="app.viewStats()">عرض الإحصائيات الحية</button>
-        </section>
+                <div id="results-container" class="results-grid">
+                    <!-- سيتم ملؤها من خلال JavaScript -->
+                </div>
 
-        <!-- الإحصائيات الحية -->
-        <section id="s-stats" class="hidden-screen">
-            <h2>الإحصائيات الحية</h2>
-            <div class="chart-grid">
-                <div class="chart-card"><canvas id="q1Chart"></canvas></div>
-                <div class="chart-card"><canvas id="q2Chart"></canvas></div>
-                <div class="chart-card"><canvas id="q3Chart"></canvas></div>
+                <div class="buttons-group" style="margin-top: 30px;">
+                    <button class="btn btn-primary" onclick="goHome()">
+                        <i class="fas fa-home"></i> العودة للرئيسية
+                    </button>
+                    <button class="btn btn-whatsapp" onclick="shareResults()">
+                        <i class="fab fa-whatsapp"></i> شارك النتائج
+                    </button>
+                </div>
             </div>
-            <div class="stats-counters">
-                <div class="stat-box">رسائل الفيديو: <span id="vid-count">0</span></div>
-                <div class="stat-box">الرسائل الصوتية: <span id="aud-count">0</span></div>
-            </div>
-            <div style="margin-top: 15px; display: flex; gap: 10px;">
-                <a href="gallery/" class="btn-secondary" style="text-decoration:none; flex: 1;"><i class="fas fa-images"></i> معرض الرسائل</a>
-                <button class="btn-outline" onclick="app.nextScreen('s-welcome')" style="flex: 1; margin-bottom: 0;"><i class="fas fa-home"></i> الرئيسية</button>
-            </div>
-        </section>
-    </main>
+        </div>
+    </div>
 
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.2/gsap.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    <script src="animations.js"></script>
-    <script src="charts.js"></script>
-    <script src="app.js"></script>
-    <script>if('serviceWorker' in navigator) navigator.serviceWorker.register('service-worker.js');</script>
+    <script>
+        const answers = {};
+        const mockResults = {
+            q1: {
+                'very_satisfied': Math.floor(Math.random() * 150) + 50,
+                'satisfied': Math.floor(Math.random() * 120) + 40,
+                'not_satisfied': Math.floor(Math.random() * 60) + 10
+            },
+            q2: {
+                'strongly_support': Math.floor(Math.random() * 140) + 60,
+                'support': Math.floor(Math.random() * 100) + 40,
+                'neutral': Math.floor(Math.random() * 70) + 20,
+                'oppose': Math.floor(Math.random() * 50) + 10
+            },
+            q3: {
+                'new_youth': Math.floor(Math.random() * 150) + 50,
+                'current': Math.floor(Math.random() * 100) + 30,
+                'experienced': Math.floor(Math.random() * 90) + 25
+            }
+        };
+
+        const questions = {
+            q1: {
+                title: 'السؤال الأول',
+                text: 'ما مدى رضاك عن أداء الإدارة الحالية؟',
+                options: {
+                    'very_satisfied': '😊 راضي جداً',
+                    'satisfied': '🙂 راضي',
+                    'not_satisfied': '😔 غير راضي'
+                }
+            },
+            q2: {
+                title: 'السؤال الثاني',
+                text: 'هل تؤيد تولي الشباب الإدارة؟',
+                options: {
+                    'strongly_support': '👍 أؤيد بشدة',
+                    'support': '🤝 أؤيد',
+                    'neutral': '🤔 لا رأي',
+                    'oppose': '👎 معارض'
+                }
+            },
+            q3: {
+                title: 'السؤال الثالث',
+                text: 'من تختار للقيادة؟',
+                options: {
+                    'new_youth': '⭐ شباب جديد',
+                    'current': '🛡️ الإدارة الحالية',
+                    'experienced': '👨‍💼 شخصيات خبيرة'
+                }
+            }
+        };
+
+        function showScreen(id) {
+            document.querySelectorAll('.question-section').forEach(el => el.classList.remove('active'));
+            document.getElementById(id).classList.add('active');
+        }
+
+        function startSurvey() {
+            showScreen('q1-screen');
+        }
+
+        function nextQuestion(id) {
+            showScreen(id + '-screen');
+        }
+
+        function recordAnswer(question, answer) {
+            answers[question] = answer;
+            document.querySelectorAll(`#${question}-screen .option-btn`).forEach(btn => {
+                btn.classList.remove('selected');
+            });
+            event.target.closest('.option-btn').classList.add('selected');
+        }
+
+        function showResultsScreen() {
+            displayResults();
+            showScreen('results-screen');
+        }
+
+        function displayResults() {
+            const container = document.getElementById('results-container');
+            container.innerHTML = '';
+
+            Object.entries(mockResults).forEach((entry, idx) => {
+                const [questionId, results] = entry;
+                const totalVotes = Object.values(results).reduce((a, b) => a + b, 0);
+                
+                let html = `<div class="result-item">
+                    <div class="result-title">${questions[questionId].title}</div>
+                    <div style="font-size: 0.95rem; color: var(--text-light); margin-bottom: 15px;">
+                        ${questions[questionId].text}
+                    </div>`;
+
+                Object.entries(results).forEach(([key, votes]) => {
+                    const percentage = ((votes / totalVotes) * 100).toFixed(1);
+                    html += `
+                    <div class="bar-item">
+                        <div class="bar-label">
+                            <span>${questions[questionId].options[key]}</span>
+                            <span>${percentage}%</span>
+                        </div>
+                        <div class="bar-container">
+                            <div class="bar-fill" style="width: ${percentage}%;">
+                                <span>${votes}</span>
+                            </div>
+                        </div>
+                    </div>`;
+                });
+
+                html += '</div>';
+                container.innerHTML += html;
+            });
+        }
+
+        function showResults() {
+            displayResults();
+            showScreen('results-screen');
+        }
+
+        function goHome() {
+            answers = {};
+            showScreen('welcome-screen');
+        }
+
+        function shareWhatsApp() {
+            const text = `السلام عليكم 👋\n\nلأنكم أهالينا فى قرية الأحمدية\nعاوزين نأخد رأيكم فى استبيان سريع 📊\n\nشارك برأيك الآن وساهم في تطوير مركز الشباب!\n\n🔗 افتح الرابط واشترك الآن`;
+            const encodedText = encodeURIComponent(text);
+            window.open(`https://wa.me/?text=${encodedText}`, '_blank');
+        }
+
+        function shareResults() {
+            const totalVotes = Object.values(mockResults).reduce((sum, q) => 
+                sum + Object.values(q).reduce((a, b) => a + b, 0), 0
+            );
+            const text = `لقد شاركت في استبيان مركز شباب قرية الأحمدية 📊\n\nحتى الآن شارك ${totalVotes} شخص برأيهم\n\nشارك أنت أيضاً! 👇`;
+            const encodedText = encodeURIComponent(text);
+            window.open(`https://wa.me/?text=${encodedText}`, '_blank');
+        }
+    </script>
 </body>
 </html>
