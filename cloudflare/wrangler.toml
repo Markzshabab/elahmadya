@@ -2,23 +2,14 @@ name = "ahmadiya-survey-worker"
 main = "worker.js"
 compatibility_date = "2025-01-01"
 
-# R2 bucket for pending/approved/rejected/thumbnails media
 [[r2_buckets]]
 binding = "R2_BUCKET"
 bucket_name = "ahmadiya-survey-media"
 
-# Workers KV for rate limiting + admin session tokens
 [[kv_namespaces]]
 binding = "RATE_LIMIT_KV"
-id = "REPLACE_WITH_YOUR_KV_NAMESPACE_ID"
+id = "72e8c72d56ed4cd587adb56393a4da75"
 
-# Public R2 URL (enable public access or connect a custom domain to the bucket)
 [vars]
-R2_PUBLIC_BASE_URL = "https://media.YOUR_DOMAIN.com"
+R2_PUBLIC_BASE_URL = "https://pub-3fb0b86037554ed0b842bc258e8a3051.r2.dev"
 FIREBASE_DB_URL = "https://YOUR_PROJECT-default-rtdb.firebaseio.com"
-
-# Secrets — set these with `wrangler secret put <NAME>`, never commit them:
-#   wrangler secret put IP_SALT
-#   wrangler secret put ADMIN_PASSWORD_SALT
-#   wrangler secret put FIREBASE_SECRET
-#   wrangler secret put TURNSTILE_SECRET
