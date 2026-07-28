@@ -1,0 +1,137 @@
+<!DOCTYPE html>
+<html dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <title>اختبار API</title>
+    <style>
+        body { font-family: Arial; padding: 20px; direction: rtl; }
+        .test-box { background: #f0f0f0; padding: 15px; margin: 10px 0; border-radius: 8px; }
+        button { padding: 10px 20px; margin: 5px; cursor: pointer; }
+        #result { white-space: pre-wrap; background: #333; color: #0f0; padding: 15px; margin-top: 10px; }
+        .success { color: green; }
+        .error { color: red; }
+    </style>
+</head>
+<body>
+    <h1>🧪 اختبار Worker API</h1>
+    
+    <div class="test-box">
+        <h3>1. اختبار الاتصال (Health)</h3>
+        <button onclick="testHealth()">اختبر الصحة</button>
+        <span id="health-result"></span>
+    </div>
+
+    <div class="test-box">
+        <h3>2. اختبار الإحصائيات (Stats)</h3>
+        <button onclick="testStats()">اختبر الإحصائيات</button>
+        <span id="stats-result"></span>
+    </div>
+
+    <div class="test-box">
+        <h3>3. اختبار التصويت (Vote)</h3>
+        <button onclick="testVote()">أرسل تصويت تجريبي</button>
+        <span id="vote-result"></span>
+    </div>
+
+    <div id="result">نتائج الاختبار ستظهر هنا...</div>
+
+    <script>
+        const API = 'https://markzshabab.studusa05.workers.dev';
+
+        function log(msg) {
+            document.getElementById('result').textContent += msg + '\n';
+        }
+
+        function clearLog() {
+            document.getElementById('result').textContent = '';
+        }
+
+        async function testHealth() {
+            clearLog();
+            log('📡 جاري اختبار: GET /api/health');
+            
+            try {
+                const res = await fetch(`${API}/api/health`);
+                const data = await res.json();
+                
+                log(`✅ الحالة: ${res.status}`);
+                log(`📄 الرد: ${JSON.stringify(data, null, 2)}`);
+                document.getElementById('health-result').innerHTML = 
+                    `<span class="success">✅ يعمل! (${res.status})</span>`;
+            } catch (e) {
+                log(`❌ خطأ: ${e.message}`);
+                document.getElementById('health-result').innerHTML = 
+                    `<span class="error">❌ فشل: ${e.message}</span>`;
+            }
+        }
+
+        async function testStats() {
+            clearLog();
+            log('📊 جاري اختبار: GET /api/stats');
+            
+            try {
+                const res = await fetch(`${API}/api/stats`);
+                const data = await res.json();
+                
+                log(`✅ الحالة: ${res.status}`);
+                log(`📄 الرد: ${JSON.stringify(data, null, 2)}`);
+                document.getElementById('stats-result').innerHTML = 
+                    `<span class="${res.status === 200 ? 'success' : 'error'}">${res.status === 200 ? '✅' : '❌'} (${res.status})</span>`;
+            } catch (e) {
+                log(`❌ خطأ: ${e.message}`);
+                document.getElementById('stats-result').innerHTML = 
+                    `<span class="error">❌ فشل: ${e.message}</span>`;
+            }
+        }
+
+        async function testVote() {
+            clearLog();
+            log('🗳️ جاري اختبار: POST /api/vote');
+            
+            // نفس البيانات التي يرسلها app.js
+            const formData = new FormData();
+            formData.append('votes', JSON.stringify({
+                q1: 'satisfied',
+                q2: 'yes',
+                q3: 'youth'
+            }));
+            formData.append('fingerprint', 'test_' + Date.now());
+
+            log(`📤 البيانات المرسلة:`);
+            log(`   votes: ${formData.get('votes')}`);
+
+            try {
+                const res = await fetch(`${API}/api/vote`, {
+                    method: 'POST',
+                    body: formData,
+                    headers: { 'Accept': 'application/json' }
+                });
+                
+                const data = await res.json();
+                
+                log(`\n✅ الحالة: ${res.status}`);
+                log(`📄 الرد: ${JSON.stringify(data, null, 2)}`);
+                
+                if (data.success) {
+                    document.getElementById('vote-result').innerHTML = 
+                        `<span class="success">✅ تم بنجاح!</span>`;
+                } else {
+                    document.getElementById('vote-result').innerHTML = 
+                        `<span class="error">❌ ${data.error || 'فشل'} (${res.status})</span>`;
+                }
+            } catch (e) {
+                log(`❌ خطأ: ${e.message}`);
+                document.getElementById('vote-result').innerHTML = 
+                    `<span class="error">❌ فشل: ${e.message}</span>`;
+            }
+        }
+
+        // اختتبار تلقائي عند التحميل
+        window.onload = () => {
+            log('🚀 صفحة الاختبار محملة');
+            log(`🔗 API URL: ${API}`);
+            log('\nاضغط على الأزرار للاختبار...\n');
+        };
+    </script>
+</body>
+</html>
