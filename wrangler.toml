@@ -1,0 +1,25 @@
+name = "markzshabab"
+main = "worker.js"
+compatibility_date = "2026-01-01"
+
+# ============================================================
+# متغيرات البيئة العامة (غير سرية) — عدّل القيم حسب مشروعك
+# ============================================================
+[vars]
+FIREBASE_URL = "https://markzshabab-4c01b-default-rtdb.firebaseio.com"
+R2_ENDPOINT = "https://10e4bc3d08c48ad801bb9661b0f978ad.r2.cloudflarestorage.com"
+R2_BUCKET_NAME = "ahmadiya-survey-media"
+R2_PUBLIC_URL = "https://pub-3fb0b86037554ed0b842bc258e8a3051.r2.dev"
+
+# ============================================================
+# الأسرار (لا تضعها هنا مباشرة) — ضبطها من الطرفية بالأوامر:
+#
+#   npx wrangler secret put R2_ACCESS_KEY_ID
+#   npx wrangler secret put R2_SECRET_ACCESS_KEY
+#   npx wrangler secret put ADMIN_PASSWORD
+#
+# R2_ACCESS_KEY_ID و R2_SECRET_ACCESS_KEY تحصل عليهم من:
+#   Cloudflare Dashboard -> R2 -> Manage R2 API Tokens -> Create API Token
+#
+# ADMIN_PASSWORD هي كلمة المرور اللي هتدخل بيها على لوحة تحكم الأدمن
+# ============================================================

@@ -1,0 +1,794 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, viewport-fit=cover">
+<title>استبيان مركز شباب الأحمدية</title>
+<meta name="description" content="استبيان أهالي الأحمدية حول إدارة مركز الشباب">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Cairo:wght@600;700;800;900&family=Tajawal:wght@400;500;700&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@fingerprintjs/fingerprintjs@3/dist/fp.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<style>
+  :root{
+    --olive-950:#122318;
+    --olive-900:#1F3D2B;
+    --olive-800:#2A5138;
+    --olive-700:#356847;
+    --gold-600:#C9992C;
+    --gold-500:#DBAF44;
+    --gold-100:#F6E9C9;
+    --ivory:#FBF8F0;
+    --ivory-dim:#F1ECDD;
+    --ember-600:#B23A2E;
+    --ember-100:#F7E2DE;
+    --ink:#22281F;
+    --ink-soft:#5B6259;
+    --shadow-lg: 0 20px 50px -20px rgba(18,35,24,.45);
+    --shadow-sm: 0 6px 16px -8px rgba(18,35,24,.3);
+    --radius-lg: 26px;
+    --radius-md: 18px;
+    --font-display:'Cairo', sans-serif;
+    --font-body:'Tajawal', sans-serif;
+  }
+
+  *{box-sizing:border-box;}
+  html{-webkit-tap-highlight-color:transparent;}
+  body{
+    margin:0;
+    min-height:100vh;
+    font-family:var(--font-body);
+    color:var(--ink);
+    background:
+      radial-gradient(1100px 600px at 15% -10%, rgba(219,175,68,.18), transparent 60%),
+      radial-gradient(900px 500px at 110% 10%, rgba(53,104,71,.35), transparent 55%),
+      linear-gradient(180deg, var(--olive-950), var(--olive-900) 38%, var(--olive-800) 100%);
+    background-attachment:fixed;
+    padding:28px 16px 110px;
+    overflow-x:hidden;
+  }
+
+  @media(prefers-reduced-motion: reduce){
+    *{animation-duration:.001ms !important; animation-iteration-count:1 !important; transition-duration:.001ms !important;}
+  }
+
+  /* ---------- background ambient texture ---------- */
+  .grain{
+    position:fixed; inset:0; pointer-events:none; z-index:0; opacity:.06; mix-blend-mode:overlay;
+    background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+  }
+
+  /* ---------- header ---------- */
+  .hero{
+    max-width:520px; margin:0 auto 22px; text-align:center; position:relative; z-index:1;
+    opacity:0; transform:translateY(-14px);
+    animation:dropIn .7s cubic-bezier(.2,.9,.25,1) .05s forwards;
+  }
+  .hero .badge{
+    display:inline-flex; align-items:center; gap:8px;
+    background:rgba(255,255,255,.08); border:1px solid rgba(219,175,68,.5);
+    color:var(--gold-100); font-family:var(--font-body); font-size:12.5px; font-weight:700;
+    padding:7px 16px; border-radius:999px; letter-spacing:.3px; backdrop-filter:blur(6px);
+  }
+  .hero .badge .dot{width:7px;height:7px;border-radius:50%;background:var(--gold-500); box-shadow:0 0 0 4px rgba(219,175,68,.25); animation:pulseDot 2s ease-in-out infinite;}
+  .hero h1{
+    font-family:var(--font-display); font-weight:900; color:#fff; font-size:clamp(24px,6vw,32px);
+    margin:14px 0 6px; line-height:1.3; text-shadow:0 4px 24px rgba(0,0,0,.25);
+  }
+  .hero p{color:rgba(255,255,255,.72); font-size:14.5px; margin:0; line-height:1.7;}
+
+  /* ---------- seal progress strip ---------- */
+  .seal-strip{
+    max-width:520px; margin:0 auto 18px; display:flex; justify-content:center; gap:10px;
+    position:relative; z-index:1;
+    opacity:0; animation:dropIn .7s cubic-bezier(.2,.9,.25,1) .15s forwards;
+  }
+  .seal{
+    width:40px; height:40px; border-radius:50%; display:flex; align-items:center; justify-content:center;
+    background:rgba(255,255,255,.07); border:2px solid rgba(255,255,255,.22);
+    color:rgba(255,255,255,.55); font-family:var(--font-display); font-weight:800; font-size:15px;
+    transition:all .45s cubic-bezier(.34,1.56,.64,1);
+  }
+  .seal.done{
+    background:radial-gradient(circle at 35% 30%, var(--gold-500), var(--gold-600));
+    border-color:var(--gold-600); color:var(--olive-950);
+    box-shadow:0 0 0 5px rgba(201,153,44,.18), var(--shadow-sm);
+    transform:scale(1.05) rotate(-6deg);
+  }
+  .seal.current{border-color:var(--gold-500); color:var(--gold-100); animation:pulseRing 1.8s ease-in-out infinite;}
+
+  /* ---------- container / card ---------- */
+  .app{max-width:520px; margin:0 auto; position:relative; z-index:1;}
+  .card{
+    background:var(--ivory);
+    border-radius:var(--radius-lg);
+    box-shadow:var(--shadow-lg);
+    padding:34px 24px 28px;
+    position:relative;
+    overflow:hidden;
+    border:1px solid rgba(255,255,255,.6);
+  }
+  .card::before{
+    content:''; position:absolute; inset:0 0 auto 0; height:6px;
+    background:linear-gradient(90deg, var(--gold-600), var(--olive-700), var(--gold-600));
+    background-size:200% 100%; animation:shimmer 5s linear infinite;
+  }
+
+  .step{display:none;}
+  .step.active{display:block; animation:stepIn .5s cubic-bezier(.2,.9,.25,1);}
+
+  .q-eyebrow{
+    font-family:var(--font-body); font-weight:700; font-size:12.5px; color:var(--gold-600);
+    letter-spacing:.5px; margin:0 0 8px; display:block;
+  }
+  .q-title{
+    font-family:var(--font-display); font-weight:800; color:var(--olive-900);
+    font-size:clamp(19px,5vw,22px); line-height:1.55; margin:0 0 26px;
+  }
+
+  .btn-option{
+    display:flex; align-items:center; justify-content:space-between; width:100%;
+    padding:17px 20px; margin:12px 0; border:2px solid var(--olive-800); border-radius:var(--radius-md);
+    background:#fff; color:var(--olive-900); font-family:var(--font-body); font-weight:700; font-size:16.5px;
+    cursor:pointer; transition:transform .18s ease, box-shadow .18s ease, background .25s ease, color .25s ease;
+    position:relative; overflow:hidden;
+  }
+  .btn-option:active{transform:scale(.98);}
+  .btn-option .opt-icon{font-size:20px;}
+  .btn-option .opt-seal{
+    width:26px; height:26px; border-radius:50%; border:2px solid currentColor; opacity:.35;
+    display:flex; align-items:center; justify-content:center; font-size:13px; transition:all .3s;
+  }
+  .btn-option:hover{box-shadow:var(--shadow-sm); transform:translateY(-1px);}
+  .btn-option.negative{border-color:var(--ember-600); color:var(--ember-600);}
+
+  .btn-option.selected{
+    background:var(--olive-900); color:#fff; border-color:var(--olive-900);
+    box-shadow:0 10px 24px -10px rgba(31,61,43,.55);
+    animation:stampSeal .45s cubic-bezier(.34,1.56,.64,1);
+  }
+  .btn-option.negative.selected{background:var(--ember-600); border-color:var(--ember-600); box-shadow:0 10px 24px -10px rgba(178,58,46,.5);}
+  .btn-option.selected .opt-seal{opacity:1; background:var(--gold-500); border-color:var(--gold-500); color:var(--olive-950); transform:scale(1.1);}
+  .btn-option.selected .opt-seal::after{content:'✓';}
+
+  .btn-main{
+    width:100%; padding:17px; margin-top:20px; border:none; border-radius:var(--radius-md);
+    background:linear-gradient(135deg, var(--olive-800), var(--olive-900));
+    color:#fff; font-family:var(--font-display); font-weight:800; font-size:17px; cursor:pointer;
+    box-shadow:0 10px 24px -10px rgba(31,61,43,.6);
+    transition:transform .18s ease, box-shadow .18s ease, opacity .2s;
+    display:flex; align-items:center; justify-content:center; gap:8px;
+  }
+  .btn-main:active{transform:scale(.98);}
+  .btn-main:disabled{opacity:.45; cursor:not-allowed; box-shadow:none;}
+  .btn-main.ghost{background:transparent; color:var(--olive-800); border:2px solid var(--olive-800); box-shadow:none;}
+
+  .btn-back{
+    display:inline-flex; align-items:center; gap:6px; background:none; border:none; color:var(--ink-soft);
+    font-family:var(--font-body); font-weight:700; font-size:14px; cursor:pointer; margin-bottom:14px; padding:4px 0;
+  }
+
+  /* ---------- media step ---------- */
+  .media-choice{display:grid; grid-template-columns:1fr 1fr; gap:12px; margin:6px 0 4px;}
+  .media-card{
+    border:2px dashed var(--olive-700); border-radius:var(--radius-md); padding:20px 10px; text-align:center;
+    cursor:pointer; background:#fff; transition:all .25s ease; color:var(--olive-900);
+  }
+  .media-card:hover{border-style:solid; box-shadow:var(--shadow-sm); transform:translateY(-2px);}
+  .media-card .ico{font-size:30px; display:block; margin-bottom:8px;}
+  .media-card .lbl{font-family:var(--font-display); font-weight:800; font-size:15px;}
+  .media-card .sub{font-size:12px; color:var(--ink-soft); margin-top:3px;}
+  .media-card.active{border-style:solid; border-color:var(--gold-600); background:var(--gold-100);}
+
+  .skip-link{
+    text-align:center; display:block; margin-top:16px; color:var(--ink-soft); font-size:13.5px;
+    text-decoration:underline; cursor:pointer; background:none; border:none; width:100%; font-family:var(--font-body);
+  }
+
+  .recording-panel{margin-top:14px; text-align:center;}
+  .rec-ring-wrap{
+    width:150px; height:150px; margin:8px auto 14px; border-radius:50%; position:relative;
+    display:flex; align-items:center; justify-content:center;
+  }
+  .rec-ring-wrap svg{position:absolute; inset:0; transform:rotate(-90deg);}
+  .rec-ring-bg{fill:none; stroke:rgba(31,61,43,.12); stroke-width:8;}
+  .rec-ring-fg{fill:none; stroke:var(--ember-600); stroke-width:8; stroke-linecap:round; transition:stroke-dashoffset .95s linear;}
+  .rec-time{font-family:var(--font-display); font-weight:900; font-size:30px; color:var(--olive-900);}
+  .rec-dot{width:11px; height:11px; border-radius:50%; background:var(--ember-600); display:inline-block; margin-inline-start:6px; animation:pulseDot 1s infinite;}
+  video, audio{width:100%; border-radius:14px; margin-top:12px; display:block; background:#000; box-shadow:var(--shadow-sm);}
+
+  .media-preview-wrap{margin-top:14px;}
+  .redo-btn{
+    background:none; border:1px solid var(--ink-soft); color:var(--ink-soft); border-radius:999px;
+    padding:8px 16px; font-size:13px; font-family:var(--font-body); font-weight:700; cursor:pointer; margin-top:10px;
+  }
+
+  /* ---------- toast ---------- */
+  .toast-wrap{position:fixed; top:20px; left:50%; transform:translateX(-50%); z-index:9999; width:min(92vw,420px);}
+  .toast{
+    background:var(--olive-950); color:#fff; padding:14px 18px; border-radius:14px; font-size:14.5px;
+    box-shadow:var(--shadow-lg); display:flex; align-items:center; gap:10px; margin-bottom:8px;
+    animation:toastIn .4s cubic-bezier(.2,.9,.25,1), toastOut .4s ease 3.6s forwards;
+    border-inline-start:4px solid var(--gold-500);
+  }
+  .toast.error{border-inline-start-color:var(--ember-600);}
+
+  /* ---------- success screen ---------- */
+  .success-wrap{text-align:center; padding:20px 6px;}
+  .success-seal{
+    width:96px; height:96px; margin:0 auto 20px; border-radius:50%;
+    background:radial-gradient(circle at 35% 30%, var(--gold-500), var(--gold-600));
+    display:flex; align-items:center; justify-content:center; font-size:44px;
+    box-shadow:0 0 0 8px rgba(201,153,44,.18), var(--shadow-lg);
+    animation:sealPop .6s cubic-bezier(.34,1.56,.64,1);
+  }
+  .success-wrap h2{font-family:var(--font-display); color:var(--olive-900); font-size:22px; margin:0 0 10px;}
+  .success-wrap p{color:var(--ink-soft); font-size:15px; line-height:1.8; margin:0 0 22px;}
+
+  /* ---------- results ---------- */
+  .results-head{text-align:center; margin-bottom:18px;}
+  .results-head h2{font-family:var(--font-display); color:var(--olive-900); font-size:21px; margin:0 0 4px;}
+  .results-head p{color:var(--ink-soft); font-size:13px; margin:0;}
+  .stat-row{display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-bottom:18px;}
+  .stat-box{background:var(--ivory-dim); border-radius:14px; padding:14px; text-align:center;}
+  .stat-box .num{font-family:var(--font-display); font-weight:900; font-size:24px; color:var(--olive-900); display:block;}
+  .stat-box .lbl{font-size:11.5px; color:var(--ink-soft); font-weight:700;}
+
+  .bar-group{margin-bottom:20px;}
+  .bar-group h3{font-family:var(--font-display); font-size:14.5px; color:var(--olive-800); margin:0 0 10px;}
+  .bar-item{margin-bottom:10px;}
+  .bar-item .bar-top{display:flex; justify-content:space-between; font-size:13px; font-weight:700; color:var(--ink); margin-bottom:5px;}
+  .bar-track{height:12px; background:var(--ivory-dim); border-radius:999px; overflow:hidden;}
+  .bar-fill{height:100%; border-radius:999px; width:0%; transition:width 1.1s cubic-bezier(.2,.9,.25,1); background:linear-gradient(90deg,var(--olive-700),var(--olive-900));}
+  .bar-fill.gold{background:linear-gradient(90deg,var(--gold-500),var(--gold-600));}
+  .bar-fill.ember{background:linear-gradient(90deg,#d1594c,var(--ember-600));}
+
+  .media-gallery{margin-top:6px;}
+  .media-gallery h3{font-family:var(--font-display); font-size:15px; color:var(--olive-800); margin:0 0 4px;}
+  .media-gallery .sub{font-size:12.5px; color:var(--ink-soft); margin:0 0 14px;}
+  .media-grid{display:grid; grid-template-columns:1fr 1fr; gap:12px;}
+  .media-item{
+    background:#fff; border-radius:16px; overflow:hidden; box-shadow:var(--shadow-sm);
+    border:1px solid rgba(31,61,43,.08); opacity:0; transform:translateY(14px);
+    animation:cardIn .5s cubic-bezier(.2,.9,.25,1) forwards;
+  }
+  .media-item video, .media-item audio{margin:0; border-radius:0;}
+  .media-item .tag{
+    display:flex; align-items:center; gap:6px; padding:9px 11px; font-size:11.5px; font-weight:700; color:var(--olive-800);
+  }
+  .media-empty{
+    text-align:center; padding:30px 14px; color:var(--ink-soft); font-size:13.5px;
+    background:var(--ivory-dim); border-radius:16px;
+  }
+
+  /* ---------- bottom nav ---------- */
+  .bottom-nav{
+    position:fixed; bottom:0; inset-inline:0; z-index:1000;
+    background:rgba(251,248,240,.92); backdrop-filter:blur(14px);
+    display:flex; justify-content:space-around; align-items:center;
+    padding:10px 8px calc(10px + env(safe-area-inset-bottom));
+    box-shadow:0 -8px 30px -10px rgba(18,35,24,.35);
+    border-top:1px solid rgba(31,61,43,.08);
+  }
+  .nav-item{
+    display:flex; flex-direction:column; align-items:center; gap:3px; color:var(--ink-soft);
+    font-size:11px; font-weight:700; text-decoration:none; cursor:pointer; padding:6px 14px; border-radius:14px;
+    transition:all .25s ease; background:none; border:none; font-family:var(--font-body);
+  }
+  .nav-item .ico{font-size:21px; transition:transform .25s;}
+  .nav-item.active{color:var(--olive-900); background:var(--gold-100);}
+  .nav-item.active .ico{transform:translateY(-2px);}
+
+  /* ---------- footer ---------- */
+  .footer-note{
+    max-width:520px; margin:18px auto 0; text-align:center; color:rgba(255,255,255,.55);
+    font-size:12px; line-height:1.9; position:relative; z-index:1;
+  }
+
+  /* ---------- animations ---------- */
+  @keyframes dropIn{to{opacity:1; transform:translateY(0);}}
+  @keyframes stepIn{from{opacity:0; transform:translateY(10px) scale(.99);} to{opacity:1; transform:none;}}
+  @keyframes cardIn{to{opacity:1; transform:translateY(0);}}
+  @keyframes stampSeal{0%{transform:scale(1);} 45%{transform:scale(1.035) rotate(-1deg);} 100%{transform:scale(1);}}
+  @keyframes pulseDot{0%,100%{opacity:1;} 50%{opacity:.35;}}
+  @keyframes pulseRing{0%,100%{box-shadow:0 0 0 0 rgba(219,175,68,.35);} 50%{box-shadow:0 0 0 7px rgba(219,175,68,0);}}
+  @keyframes shimmer{to{background-position:-200% 0;}}
+  @keyframes sealPop{0%{transform:scale(0) rotate(-30deg); opacity:0;} 70%{transform:scale(1.12) rotate(4deg);} 100%{transform:scale(1) rotate(0); opacity:1;}}
+  @keyframes toastIn{from{opacity:0; transform:translateY(-16px) translateX(0);} to{opacity:1; transform:translateY(0);}}
+  @keyframes toastOut{to{opacity:0; transform:translateY(-10px);}}
+  @keyframes spin{to{transform:rotate(360deg);}}
+  .spinner{width:20px;height:20px;border-radius:50%;border:3px solid rgba(255,255,255,.35);border-top-color:#fff;animation:spin .7s linear infinite;}
+</style>
+</head>
+<body>
+
+<div class="grain"></div>
+<div class="toast-wrap" id="toastWrap"></div>
+
+<header class="hero">
+  <span class="badge"><span class="dot"></span> صفحة الأحمدية بلدنا</span>
+  <h1>استبيان أهالي الأحمدية<br>حول مركز الشباب</h1>
+  <p>رأيك يصنع فرق حقيقي — شارك في أقل من دقيقة</p>
+</header>
+
+<div class="seal-strip" id="sealStrip">
+  <div class="seal current" data-seal="1">1</div>
+  <div class="seal" data-seal="2">2</div>
+  <div class="seal" data-seal="3">3</div>
+  <div class="seal" data-seal="4">4</div>
+</div>
+
+<div class="app">
+  <div class="card" id="app">
+
+    <!-- السؤال الأول -->
+    <section class="step active" id="step-1">
+      <span class="q-eyebrow">السؤال الأول</span>
+      <h2 class="q-title">ما مدى رضاك عن أداء الإدارة الحالية لمركز الشباب خلال الخمس سنوات الماضية؟</h2>
+      <button class="btn-option" onclick="selectOption(1,'راضي جداً',this)">
+        <span><span class="opt-icon">😊</span> راضي جداً</span>
+        <span class="opt-seal"></span>
+      </button>
+      <button class="btn-option negative" onclick="selectOption(1,'غير راضي',this)">
+        <span><span class="opt-icon">🙁</span> غير راضي</span>
+        <span class="opt-seal"></span>
+      </button>
+      <button class="btn-main" id="next1" onclick="nextStep(2)" disabled>التالي</button>
+    </section>
+
+    <!-- السؤال الثاني -->
+    <section class="step" id="step-2">
+      <button class="btn-back" onclick="prevStep(1)">→ رجوع</button>
+      <span class="q-eyebrow">السؤال الثاني</span>
+      <h2 class="q-title">هل تؤيد تولي الشباب إدارة مركز الشباب خلال الخمس سنوات القادمة؟</h2>
+      <button class="btn-option" onclick="selectOption(2,'نعم، أؤيد',this)">
+        <span><span class="opt-icon">👍</span> نعم، أؤيد</span>
+        <span class="opt-seal"></span>
+      </button>
+      <button class="btn-option negative" onclick="selectOption(2,'لا أؤيد',this)">
+        <span><span class="opt-icon">👎</span> لا أؤيد</span>
+        <span class="opt-seal"></span>
+      </button>
+      <button class="btn-main" id="next2" onclick="nextStep(3)" disabled>التالي</button>
+    </section>
+
+    <!-- السؤال الثالث -->
+    <section class="step" id="step-3">
+      <button class="btn-back" onclick="prevStep(2)">→ رجوع</button>
+      <span class="q-eyebrow">السؤال الثالث</span>
+      <h2 class="q-title">من تختار لإدارة مركز الشباب في الانتخابات القادمة؟</h2>
+      <button class="btn-option" onclick="selectOption(3,'شباب جديد',this)">
+        <span><span class="opt-icon">👤+</span> شباب جديد</span>
+        <span class="opt-seal"></span>
+      </button>
+      <button class="btn-option negative" onclick="selectOption(3,'الإدارة الحالية',this)">
+        <span><span class="opt-icon">👤</span> الإدارة الحالية</span>
+        <span class="opt-seal"></span>
+      </button>
+      <button class="btn-main" id="next3" onclick="nextStep(4)" disabled>التالي</button>
+    </section>
+
+    <!-- خطوة تسجيل الوسائط -->
+    <section class="step" id="step-4">
+      <button class="btn-back" onclick="prevStep(3)">→ رجوع</button>
+      <span class="q-eyebrow">أخيراً (اختياري)</span>
+      <h2 class="q-title">هل ترغب في دعم رأيك برسالة مسجلة؟</h2>
+
+      <div id="mediaChoiceZone">
+        <div class="media-choice">
+          <div class="media-card" id="cardVideo" onclick="chooseMediaType('video')">
+            <span class="ico">📹</span>
+            <div class="lbl">فيديو</div>
+            <div class="sub">30 ثانية</div>
+          </div>
+          <div class="media-card" id="cardAudio" onclick="chooseMediaType('audio')">
+            <span class="ico">🎙️</span>
+            <div class="lbl">تسجيل صوتي</div>
+            <div class="sub">15 ثانية — لو بنت وحابة تحافظي على خصوصيتك</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="recording-panel" id="recordingPanel" style="display:none;"></div>
+      <div class="media-preview-wrap" id="mediaPreviewWrap"></div>
+
+      <button class="btn-main" id="submitBtn" onclick="submitSurvey()">
+        <span id="submitLabel">إرسال الاستبيان</span>
+      </button>
+      <button class="skip-link" id="skipLink" onclick="submitSurvey()">تخطي التسجيل وإرسال الاستبيان بدونه</button>
+    </section>
+
+    <!-- شاشة النجاح -->
+    <section class="step" id="step-success">
+      <div class="success-wrap">
+        <div class="success-seal">✓</div>
+        <h2>تم تسجيل مشاركتك بنجاح!</h2>
+        <p id="successMsg">شكراً لمشاركتك في استبيان مركز الشباب. صوتك مسموع ورأيك يصنع فرق.</p>
+        <button class="btn-main ghost" onclick="showTab('results')">مشاهدة النتائج والآراء ←</button>
+      </div>
+    </section>
+
+    <!-- شاشة النتائج -->
+    <section class="step" id="step-results">
+      <div class="results-head">
+        <h2>نتائج الاستبيان</h2>
+        <p id="resultsSub">تحديث لحظي بمشاركات أهالي الأحمدية</p>
+      </div>
+
+      <div class="stat-row">
+        <div class="stat-box"><span class="num" id="totalCount">0</span><span class="lbl">إجمالي المشاركات</span></div>
+        <div class="stat-box"><span class="num" id="supportPct">0%</span><span class="lbl">مؤيدون لشباب جديد</span></div>
+      </div>
+
+      <div class="bar-group">
+        <h3>مدى الرضا عن الإدارة الحالية</h3>
+        <div class="bar-item">
+          <div class="bar-top"><span>راضي جداً</span><span id="q1aVal">0</span></div>
+          <div class="bar-track"><div class="bar-fill gold" id="q1aBar"></div></div>
+        </div>
+        <div class="bar-item">
+          <div class="bar-top"><span>غير راضي</span><span id="q1bVal">0</span></div>
+          <div class="bar-track"><div class="bar-fill ember" id="q1bBar"></div></div>
+        </div>
+      </div>
+
+      <div class="bar-group">
+        <h3>تأييد تولي الشباب الإدارة</h3>
+        <div class="bar-item">
+          <div class="bar-top"><span>نعم، أؤيد</span><span id="q2aVal">0</span></div>
+          <div class="bar-track"><div class="bar-fill" id="q2aBar"></div></div>
+        </div>
+        <div class="bar-item">
+          <div class="bar-top"><span>لا أؤيد</span><span id="q2bVal">0</span></div>
+          <div class="bar-track"><div class="bar-fill ember" id="q2bBar"></div></div>
+        </div>
+      </div>
+
+      <div class="bar-group">
+        <h3>الاختيار للانتخابات القادمة</h3>
+        <div class="bar-item">
+          <div class="bar-top"><span>شباب جديد</span><span id="q3aVal">0</span></div>
+          <div class="bar-track"><div class="bar-fill gold" id="q3aBar"></div></div>
+        </div>
+        <div class="bar-item">
+          <div class="bar-top"><span>الإدارة الحالية</span><span id="q3bVal">0</span></div>
+          <div class="bar-track"><div class="bar-fill ember" id="q3bBar"></div></div>
+        </div>
+      </div>
+
+      <div class="media-gallery">
+        <h3>آراء أهالي القرية المعتمدة</h3>
+        <p class="sub">فيديوهات وتسجيلات صوتية شاركها الأهالي</p>
+        <div class="media-grid" id="mediaGrid"><div class="media-empty">جاري تحميل الآراء المشاركة…</div></div>
+      </div>
+    </section>
+
+  </div>
+
+  <p class="footer-note">هذا الاستبيان غير رسمي وهدفه الخير<br>تحت إدارة صفحة الأحمدية بلدنا</p>
+</div>
+
+<nav class="bottom-nav">
+  <button class="nav-item active" id="navSurvey" onclick="showTab('survey')"><span class="ico">📊</span>الاستبيان</button>
+  <button class="nav-item" id="navResults" onclick="showTab('results')"><span class="ico">📈</span>النتائج والفيديوهات</button>
+  <a class="nav-item" href="https://facebook.com" target="_blank" rel="noopener"><span class="ico">📘</span>صفحتنا</a>
+</nav>
+
+<script>
+  // ============================================================
+  // إعدادات
+  // ============================================================
+  const WORKER_URL = "https://markzshabab.studusa05.workers.dev";
+
+  let answers = { q1:'', q2:'', q3:'' };
+  let mediaBlob = null;
+  let mediaKind = null;
+  let fingerprint = '';
+  let deviceStatus = { hasVoted:false, hasRecordedMedia:false };
+  let recTimer = null;
+  let activeStream = null;
+
+  // ============================================================
+  // بصمة الجهاز
+  // ============================================================
+  FingerprintJS.load().then(fp => fp.get()).then(async result => {
+    fingerprint = result.visitorId;
+    try {
+      const res = await fetch(`${WORKER_URL}/api/status?fingerprint=${fingerprint}`);
+      const data = await res.json();
+      if (data.success) {
+        deviceStatus = data;
+        if (data.hasVoted) {
+          showToast('لقد شاركت من قبل من هذا الجهاز — يمكنك مشاهدة النتائج', 'info');
+          showTab('results');
+        }
+      }
+    } catch(e) { /* صامت — الفحص اختياري */ }
+  }).catch(()=>{ fingerprint = 'fp_fallback_' + Math.random().toString(36).slice(2); });
+
+  // ============================================================
+  // تنقل بين الخطوات
+  // ============================================================
+  function selectOption(qNum, value, el){
+    answers['q'+qNum] = value;
+    const parent = el.parentElement;
+    parent.querySelectorAll('.btn-option').forEach(b=>b.classList.remove('selected'));
+    el.classList.add('selected');
+    document.getElementById('next'+qNum).disabled = false;
+    if (navigator.vibrate) navigator.vibrate(12);
+  }
+
+  function updateSeals(stepNum){
+    document.querySelectorAll('.seal').forEach(s=>{
+      const n = +s.dataset.seal;
+      s.classList.remove('done','current');
+      if (n < stepNum) s.classList.add('done');
+      else if (n === stepNum) s.classList.add('current');
+    });
+  }
+
+  function goTo(stepId){
+    document.querySelectorAll('.step').forEach(s=>s.classList.remove('active'));
+    document.getElementById(stepId).classList.add('active');
+    document.getElementById('app').scrollIntoView({behavior:'smooth', block:'start'});
+  }
+
+  function nextStep(n){
+    document.getElementById('sealStrip').style.display = 'flex';
+    updateSeals(n);
+    goTo('step-'+n);
+  }
+  function prevStep(n){
+    updateSeals(n);
+    goTo('step-'+n);
+  }
+
+  function showTab(tab){
+    document.getElementById('navSurvey').classList.toggle('active', tab==='survey');
+    document.getElementById('navResults').classList.toggle('active', tab==='results');
+    if (tab === 'survey'){
+      document.getElementById('sealStrip').style.display = 'flex';
+      goTo('step-1');
+      updateSeals(1);
+    }
+    if (tab === 'results'){
+      document.getElementById('sealStrip').style.display = 'none';
+      goTo('step-results');
+      loadResults();
+    }
+  }
+
+  // ============================================================
+  // التسجيل: فيديو / صوت
+  // ============================================================
+  function chooseMediaType(kind){
+    if (deviceStatus.hasRecordedMedia){
+      showToast('لقد سجلت رسالة مسبقاً من هذا الجهاز', 'error');
+      return;
+    }
+    mediaKind = kind;
+    document.getElementById('cardVideo').classList.toggle('active', kind==='video');
+    document.getElementById('cardAudio').classList.toggle('active', kind==='audio');
+    startRecording(kind);
+  }
+
+  async function startRecording(type){
+    const constraints = type === 'video' ? { video:{facingMode:'user'}, audio:true } : { audio:true };
+    const maxMs = type === 'video' ? 30000 : 15000;
+    const panel = document.getElementById('recordingPanel');
+    const zone = document.getElementById('mediaChoiceZone');
+
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia(constraints);
+      activeStream = stream;
+      zone.style.display = 'none';
+      panel.style.display = 'block';
+      panel.innerHTML = recordingPanelHTML(type, maxMs);
+
+      let liveVideo = document.getElementById('liveVideo');
+      if (liveVideo && type === 'video'){
+        liveVideo.srcObject = stream;
+      }
+
+      const mimeType = MediaRecorder.isTypeSupported('video/webm;codecs=vp9,opus') ? 'video/webm;codecs=vp9,opus' : undefined;
+      const mediaRecorder = new MediaRecorder(stream, mimeType ? {mimeType} : undefined);
+      let chunks = [];
+      mediaRecorder.ondataavailable = e => { if (e.data.size>0) chunks.push(e.data); };
+
+      mediaRecorder.onstop = () => {
+        mediaBlob = new Blob(chunks, { type: type==='video' ? 'video/webm' : 'audio/webm' });
+        stream.getTracks().forEach(t=>t.stop());
+        panel.style.display = 'none';
+        renderMediaPreview(type);
+      };
+
+      mediaRecorder.start();
+      let remaining = maxMs/1000;
+      const circle = document.getElementById('recRingFg');
+      const circumference = 2 * Math.PI * 66;
+      const timeLabel = document.getElementById('recTimeLabel');
+
+      recTimer = setInterval(()=>{
+        remaining -= 1;
+        if (timeLabel) timeLabel.textContent = Math.max(remaining,0);
+        if (circle){
+          const pct = Math.max(remaining,0)/(maxMs/1000);
+          circle.style.strokeDashoffset = circumference * (1-pct);
+        }
+        if (remaining <= 0){
+          clearInterval(recTimer);
+          if (mediaRecorder.state === 'recording') mediaRecorder.stop();
+        }
+      }, 1000);
+
+      document.getElementById('stopRecBtn')?.addEventListener('click', ()=>{
+        clearInterval(recTimer);
+        if (mediaRecorder.state === 'recording') mediaRecorder.stop();
+      });
+
+    } catch (err) {
+      showToast('تعذر الوصول إلى الكاميرا أو الميكروفون — تأكد من إعطاء الإذن', 'error');
+      document.getElementById('mediaChoiceZone').style.display = 'block';
+    }
+  }
+
+  function recordingPanelHTML(type, maxMs){
+    const secs = maxMs/1000;
+    return `
+      <div class="rec-ring-wrap">
+        <svg viewBox="0 0 150 150">
+          <circle class="rec-ring-bg" cx="75" cy="75" r="66"></circle>
+          <circle class="rec-ring-fg" id="recRingFg" cx="75" cy="75" r="66"
+            stroke-dasharray="${2*Math.PI*66}" stroke-dashoffset="0"></circle>
+        </svg>
+        <span class="rec-time"><span id="recTimeLabel">${secs}</span><span class="rec-dot"></span></span>
+      </div>
+      ${type==='video' ? '<video id="liveVideo" autoplay muted playsinline style="max-width:220px;margin:0 auto;border-radius:16px;"></video>' : '<p style="color:var(--ink-soft);font-size:13px;">جاري التسجيل الصوتي…</p>'}
+      <button class="redo-btn" id="stopRecBtn">إيقاف الآن</button>
+    `;
+  }
+
+  function renderMediaPreview(type){
+    const url = URL.createObjectURL(mediaBlob);
+    const wrap = document.getElementById('mediaPreviewWrap');
+    wrap.innerHTML = `
+      ${type==='video' ? `<video src="${url}" controls playsinline></video>` : `<audio src="${url}" controls></audio>`}
+      <div style="text-align:center;"><button class="redo-btn" onclick="redoRecording()">🔄 إعادة التسجيل</button></div>
+    `;
+    document.getElementById('submitLabel').textContent = 'إرسال الاستبيان مع الرسالة';
+    document.getElementById('skipLink').style.display = 'none';
+  }
+
+  function redoRecording(){
+    mediaBlob = null;
+    document.getElementById('mediaPreviewWrap').innerHTML = '';
+    document.getElementById('mediaChoiceZone').style.display = 'block';
+    document.getElementById('cardVideo').classList.remove('active');
+    document.getElementById('cardAudio').classList.remove('active');
+    document.getElementById('submitLabel').textContent = 'إرسال الاستبيان';
+    document.getElementById('skipLink').style.display = 'block';
+  }
+
+  // ============================================================
+  // إرسال الاستبيان
+  // ============================================================
+  async function submitSurvey(){
+    if (!answers.q1 || !answers.q2 || !answers.q3){
+      showToast('من فضلك أكمل كل الأسئلة أولاً', 'error');
+      return;
+    }
+    const btn = document.getElementById('submitBtn');
+    const originalLabel = document.getElementById('submitLabel').textContent;
+    btn.disabled = true;
+    document.getElementById('submitLabel').innerHTML = '<span class="spinner"></span>';
+    document.getElementById('skipLink').style.display = 'none';
+
+    try {
+      const formData = new FormData();
+      formData.append('fingerprint', fingerprint);
+      formData.append('q1', answers.q1);
+      formData.append('q2', answers.q2);
+      formData.append('q3', answers.q3);
+      if (mediaBlob) formData.append('media', mediaBlob, `media.webm`);
+
+      const res = await fetch(`${WORKER_URL}/api/submit`, { method:'POST', body:formData });
+      const result = await res.json();
+
+      if (result.success){
+        document.getElementById('successMsg').textContent = result.message;
+        document.getElementById('sealStrip').style.display = 'none';
+        updateSeals(5);
+        goTo('step-success');
+        deviceStatus.hasVoted = true;
+      } else {
+        showToast(result.message || 'حدث خطأ، حاول مرة أخرى', 'error');
+        btn.disabled = false;
+        document.getElementById('submitLabel').textContent = originalLabel;
+      }
+    } catch(e){
+      showToast('تعذر الاتصال بالخادم، تحقق من الإنترنت', 'error');
+      btn.disabled = false;
+      document.getElementById('submitLabel').textContent = originalLabel;
+    }
+  }
+
+  // ============================================================
+  // النتائج والشارت
+  // ============================================================
+  let chartInstance = null;
+  function animateNumber(el, target, suffix=''){
+    const start = 0; const dur = 900; const t0 = performance.now();
+    function frame(t){
+      const p = Math.min((t-t0)/dur, 1);
+      const eased = 1 - Math.pow(1-p, 3);
+      el.textContent = Math.round(start + (target-start)*eased) + suffix;
+      if (p<1) requestAnimationFrame(frame);
+    }
+    requestAnimationFrame(frame);
+  }
+
+  async function loadResults(){
+    try {
+      const res = await fetch(`${WORKER_URL}/api/results`);
+      const data = await res.json();
+      if (!data.success) return;
+
+      const s = data.stats;
+      const total = s.total || 0;
+      animateNumber(document.getElementById('totalCount'), total);
+      const supportPct = total ? Math.round((s.q3['شباب جديد']/total)*100) : 0;
+      animateNumber(document.getElementById('supportPct'), supportPct, '%');
+
+      setBar('q1a', s.q1['راضي جداً'], total);
+      setBar('q1b', s.q1['غير راضي'], total);
+      setBar('q2a', s.q2['نعم، أؤيد'], total);
+      setBar('q2b', s.q2['لا أؤيد'], total);
+      setBar('q3a', s.q3['شباب جديد'], total);
+      setBar('q3b', s.q3['الإدارة الحالية'], total);
+
+      renderMediaGallery(data.mediaList || []);
+    } catch(e){
+      document.getElementById('mediaGrid').innerHTML = '<div class="media-empty">تعذر تحميل النتائج حالياً</div>';
+    }
+  }
+
+  function setBar(prefix, value, total){
+    const val = value || 0;
+    const pct = total ? Math.round((val/total)*100) : 0;
+    document.getElementById(prefix+'Val').textContent = val;
+    requestAnimationFrame(()=>{
+      document.getElementById(prefix+'Bar').style.width = pct + '%';
+    });
+  }
+
+  function renderMediaGallery(list){
+    const grid = document.getElementById('mediaGrid');
+    if (!list.length){
+      grid.innerHTML = '<div class="media-empty">لا توجد آراء مشاركة معتمدة بعد — كن أول من يشارك برأيه!</div>';
+      return;
+    }
+    grid.innerHTML = list.map((m,i)=>`
+      <div class="media-item" style="animation-delay:${i*70}ms">
+        ${m.mediaType==='video'
+          ? `<video src="${m.mediaUrl}" controls playsinline></video>`
+          : `<audio src="${m.mediaUrl}" controls></audio>`}
+        <div class="tag">${m.mediaType==='video' ? '📹' : '🎙️'} رأي أحد الأهالي</div>
+      </div>
+    `).join('');
+  }
+
+  // ============================================================
+  // تنبيهات
+  // ============================================================
+  function showToast(msg, type='info'){
+    const wrap = document.getElementById('toastWrap');
+    const el = document.createElement('div');
+    el.className = 'toast' + (type==='error' ? ' error' : '');
+    el.innerHTML = `<span>${type==='error'?'⚠️':'ℹ️'}</span><span>${msg}</span>`;
+    wrap.appendChild(el);
+    setTimeout(()=>el.remove(), 4000);
+  }
+</script>
+</body>
+</html>

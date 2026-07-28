@@ -1,0 +1,292 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>لوحة تحكم الأدمن — استبيان مركز الشباب</title>
+<link href="https://fonts.googleapis.com/css2?family=Cairo:wght@700;800;900&family=Tajawal:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --olive-950:#122318; --olive-900:#1F3D2B; --olive-800:#2A5138;
+    --gold-600:#C9992C; --gold-500:#DBAF44; --gold-100:#F6E9C9;
+    --ivory:#FBF8F0; --ivory-dim:#F1ECDD; --ember-600:#B23A2E;
+    --ink:#22281F; --ink-soft:#5B6259;
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0; min-height:100vh; font-family:'Tajawal',sans-serif; color:var(--ink);
+    background:linear-gradient(180deg, var(--olive-950), var(--olive-800));
+    padding:24px 16px 60px;
+  }
+  .wrap{max-width:920px; margin:0 auto;}
+
+  /* login */
+  .login-card{
+    max-width:380px; margin:10vh auto; background:var(--ivory); border-radius:22px; padding:34px 26px;
+    box-shadow:0 20px 50px -20px rgba(0,0,0,.5); text-align:center;
+    animation:cardIn .5s cubic-bezier(.2,.9,.25,1);
+  }
+  .login-card .ico{font-size:38px; margin-bottom:8px;}
+  .login-card h1{font-family:'Cairo',sans-serif; font-size:19px; color:var(--olive-900); margin:0 0 4px;}
+  .login-card p{font-size:13px; color:var(--ink-soft); margin:0 0 20px;}
+  .login-card input{
+    width:100%; padding:14px 16px; border-radius:12px; border:2px solid #ddd6c4; font-size:15px;
+    font-family:'Tajawal',sans-serif; text-align:center; margin-bottom:12px; outline:none;
+  }
+  .login-card input:focus{border-color:var(--gold-600);}
+  .login-card button{
+    width:100%; padding:14px; border:none; border-radius:12px; background:var(--olive-900); color:#fff;
+    font-family:'Cairo',sans-serif; font-weight:800; font-size:15px; cursor:pointer;
+  }
+  .login-err{color:var(--ember-600); font-size:12.5px; margin-top:10px; min-height:16px;}
+
+  /* header */
+  .top{display:flex; align-items:center; justify-content:space-between; margin-bottom:22px; flex-wrap:wrap; gap:10px;}
+  .top h1{font-family:'Cairo',sans-serif; color:#fff; font-size:21px; margin:0;}
+  .top p{color:rgba(255,255,255,.65); font-size:13px; margin:2px 0 0;}
+  .top-actions{display:flex; gap:8px;}
+  .pill{
+    background:rgba(255,255,255,.1); color:#fff; border:1px solid rgba(255,255,255,.25); border-radius:999px;
+    padding:8px 16px; font-size:12.5px; font-weight:700; cursor:pointer; font-family:'Tajawal',sans-serif;
+  }
+
+  .stat-strip{display:grid; grid-template-columns:repeat(4,1fr); gap:10px; margin-bottom:22px;}
+  .stat{background:var(--ivory); border-radius:14px; padding:14px; text-align:center;}
+  .stat .n{font-family:'Cairo',sans-serif; font-weight:900; font-size:22px; color:var(--olive-900); display:block;}
+  .stat .l{font-size:11px; color:var(--ink-soft); font-weight:700;}
+
+  .filters{display:flex; gap:8px; margin-bottom:16px; flex-wrap:wrap;}
+  .filter-btn{
+    background:rgba(255,255,255,.08); color:#fff; border:1px solid rgba(255,255,255,.2); border-radius:999px;
+    padding:8px 18px; font-size:13px; font-weight:700; cursor:pointer; font-family:'Tajawal',sans-serif;
+  }
+  .filter-btn.active{background:var(--gold-500); color:var(--olive-950); border-color:var(--gold-500);}
+
+  .card{
+    background:var(--ivory); padding:18px; margin-bottom:14px; border-radius:18px;
+    box-shadow:0 10px 26px -14px rgba(0,0,0,.4); opacity:0; transform:translateY(10px);
+    animation:cardIn .4s cubic-bezier(.2,.9,.25,1) forwards;
+  }
+  .card-head{display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:12px; gap:10px;}
+  .card-head .time{font-size:11.5px; color:var(--ink-soft);}
+  .status-badge{
+    font-size:11px; font-weight:800; padding:4px 12px; border-radius:999px; white-space:nowrap;
+  }
+  .status-badge.pending{background:#FCEFC7; color:#8a6d1a;}
+  .status-badge.approved{background:#DCF3E3; color:#1e7a45;}
+  .status-badge.rejected{background:var(--ember-100,#F7E2DE); color:var(--ember-600);}
+
+  .qa{display:grid; grid-template-columns:1fr; gap:6px; margin-bottom:12px; font-size:14px;}
+  .qa .q{color:var(--ink-soft); font-weight:700;}
+  .qa .a{color:var(--olive-900); font-weight:700;}
+
+  video, audio{width:100%; max-width:320px; border-radius:12px; display:block; margin-bottom:12px; background:#000;}
+  .no-media{color:var(--ink-soft); font-size:13px; font-style:italic; margin-bottom:12px;}
+
+  .actions{display:flex; gap:8px;}
+  .btn-approve, .btn-reject, .btn-undo{
+    flex:1; padding:11px; border:none; border-radius:10px; font-family:'Cairo',sans-serif; font-weight:800;
+    font-size:13.5px; cursor:pointer; transition:opacity .2s;
+  }
+  .btn-approve{background:#28a745; color:#fff;}
+  .btn-reject{background:var(--ember-600); color:#fff;}
+  .btn-undo{background:#e9e4d4; color:var(--ink);}
+  .btn-approve:disabled, .btn-reject:disabled{opacity:.5; cursor:not-allowed;}
+
+  .empty-state{text-align:center; padding:60px 20px; color:rgba(255,255,255,.6);}
+  .empty-state .ico{font-size:40px; display:block; margin-bottom:10px;}
+
+  @keyframes cardIn{to{opacity:1; transform:translateY(0);}}
+  .spin{width:16px;height:16px;border-radius:50%;border:2px solid rgba(255,255,255,.4);border-top-color:#fff;display:inline-block;animation:spin .7s linear infinite;}
+  @keyframes spin{to{transform:rotate(360deg);}}
+
+  @media(max-width:640px){ .stat-strip{grid-template-columns:repeat(2,1fr);} }
+</style>
+</head>
+<body>
+
+<!-- شاشة تسجيل الدخول -->
+<div id="loginScreen" class="login-card">
+  <div class="ico">🔐</div>
+  <h1>لوحة تحكم الأدمن</h1>
+  <p>استبيان مركز شباب الأحمدية</p>
+  <input type="password" id="pwInput" placeholder="كلمة المرور" onkeydown="if(event.key==='Enter')login()">
+  <button onclick="login()">دخول</button>
+  <div class="login-err" id="loginErr"></div>
+</div>
+
+<!-- لوحة التحكم -->
+<div class="wrap" id="dashboard" style="display:none;">
+  <div class="top">
+    <div>
+      <h1>لوحة مراجعة الاستبيان</h1>
+      <p>راجع الطلبات ووسائطها ووافق أو ارفض</p>
+    </div>
+    <div class="top-actions">
+      <button class="pill" onclick="loadPending()">🔄 تحديث</button>
+      <button class="pill" onclick="logout()">🚪 خروج</button>
+    </div>
+  </div>
+
+  <div class="stat-strip">
+    <div class="stat"><span class="n" id="statTotal">0</span><span class="l">الإجمالي</span></div>
+    <div class="stat"><span class="n" id="statPending">0</span><span class="l">قيد المراجعة</span></div>
+    <div class="stat"><span class="n" id="statApproved">0</span><span class="l">تمت الموافقة</span></div>
+    <div class="stat"><span class="n" id="statRejected">0</span><span class="l">مرفوض</span></div>
+  </div>
+
+  <div class="filters">
+    <button class="filter-btn active" data-f="pending" onclick="setFilter('pending')">قيد المراجعة</button>
+    <button class="filter-btn" data-f="approved" onclick="setFilter('approved')">تمت الموافقة</button>
+    <button class="filter-btn" data-f="rejected" onclick="setFilter('rejected')">مرفوض</button>
+    <button class="filter-btn" data-f="all" onclick="setFilter('all')">الكل</button>
+  </div>
+
+  <div id="list"><div class="empty-state">جاري التحميل…</div></div>
+</div>
+
+<script>
+  const WORKER_URL = "https://markzshabab.studusa05.workers.dev";
+  let token = sessionStorage.getItem('admin_token') || '';
+  let allData = [];
+  let currentFilter = 'pending';
+
+  if (token) { showDashboard(); }
+
+  async function login(){
+    const pw = document.getElementById('pwInput').value.trim();
+    const errEl = document.getElementById('loginErr');
+    errEl.textContent = '';
+    if (!pw) { errEl.textContent = 'من فضلك أدخل كلمة المرور'; return; }
+    try {
+      const res = await fetch(`${WORKER_URL}/api/admin/login`, {
+        method:'POST', headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({ password: pw })
+      });
+      const data = await res.json();
+      if (data.success){
+        token = data.token;
+        sessionStorage.setItem('admin_token', token);
+        showDashboard();
+      } else {
+        errEl.textContent = data.message || 'كلمة المرور غير صحيحة';
+      }
+    } catch(e){
+      errEl.textContent = 'تعذر الاتصال بالخادم';
+    }
+  }
+
+  function logout(){
+    sessionStorage.removeItem('admin_token');
+    token = '';
+    document.getElementById('dashboard').style.display = 'none';
+    document.getElementById('loginScreen').style.display = 'block';
+  }
+
+  function showDashboard(){
+    document.getElementById('loginScreen').style.display = 'none';
+    document.getElementById('dashboard').style.display = 'block';
+    loadPending();
+  }
+
+  function setFilter(f){
+    currentFilter = f;
+    document.querySelectorAll('.filter-btn').forEach(b=>b.classList.toggle('active', b.dataset.f===f));
+    render();
+  }
+
+  async function loadPending(){
+    document.getElementById('list').innerHTML = '<div class="empty-state"><span class="spin"></span></div>';
+    try {
+      const res = await fetch(`${WORKER_URL}/api/admin/pending`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      if (res.status === 401){ logout(); return; }
+      const json = await res.json();
+      if (!json.success){
+        document.getElementById('list').innerHTML = `<div class="empty-state">${json.message||'حدث خطأ'}</div>`;
+        return;
+      }
+      allData = json.data || [];
+      updateStats();
+      render();
+    } catch(e){
+      document.getElementById('list').innerHTML = '<div class="empty-state">تعذر الاتصال بالخادم</div>';
+    }
+  }
+
+  function updateStats(){
+    document.getElementById('statTotal').textContent = allData.length;
+    document.getElementById('statPending').textContent = allData.filter(v=>v.status==='pending').length;
+    document.getElementById('statApproved').textContent = allData.filter(v=>v.status==='approved').length;
+    document.getElementById('statRejected').textContent = allData.filter(v=>v.status==='rejected').length;
+  }
+
+  function render(){
+    const list = document.getElementById('list');
+    const filtered = currentFilter==='all' ? allData : allData.filter(v=>v.status===currentFilter);
+
+    if (!filtered.length){
+      list.innerHTML = `<div class="empty-state"><span class="ico">🗂️</span>لا توجد طلبات في هذا القسم</div>`;
+      return;
+    }
+
+    list.innerHTML = filtered.map((item,i)=>{
+      const date = item.createdAt ? new Date(item.createdAt).toLocaleString('ar-EG') : '';
+      const statusLabel = { pending:'قيد المراجعة', approved:'تمت الموافقة', rejected:'مرفوض' }[item.status] || item.status;
+      const media = item.mediaUrl
+        ? (item.mediaType === 'video'
+            ? `<video src="${item.mediaUrl}" controls playsinline></video>`
+            : `<audio src="${item.mediaUrl}" controls></audio>`)
+        : `<div class="no-media">بدون رسالة مسجلة</div>`;
+
+      const actions = item.status === 'pending'
+        ? `<div class="actions">
+             <button class="btn-approve" onclick="moderate('${item.id}','approved',this)">✓ موافقة ونشر</button>
+             <button class="btn-reject" onclick="moderate('${item.id}','rejected',this)">✕ رفض</button>
+           </div>`
+        : `<div class="actions"><button class="btn-undo" onclick="moderate('${item.id}','pending',this)">↺ إرجاع لقيد المراجعة</button></div>`;
+
+      return `
+        <div class="card" style="animation-delay:${i*40}ms">
+          <div class="card-head">
+            <span class="time">${date}</span>
+            <span class="status-badge ${item.status}">${statusLabel}</span>
+          </div>
+          <div class="qa">
+            <div><span class="q">س1:</span> <span class="a">${item.q1||'—'}</span></div>
+            <div><span class="q">س2:</span> <span class="a">${item.q2||'—'}</span></div>
+            <div><span class="q">س3:</span> <span class="a">${item.q3||'—'}</span></div>
+          </div>
+          ${media}
+          ${actions}
+        </div>
+      `;
+    }).join('');
+  }
+
+  async function moderate(id, status, btn){
+    const card = btn.closest('.card');
+    card.querySelectorAll('button').forEach(b=>b.disabled = true);
+    btn.innerHTML = '<span class="spin"></span>';
+    try {
+      const res = await fetch(`${WORKER_URL}/api/admin/moderate`, {
+        method:'POST',
+        headers: { 'Content-Type':'application/json', 'Authorization': `Bearer ${token}` },
+        body: JSON.stringify({ id, status })
+      });
+      if (res.status === 401){ logout(); return; }
+      const data = await res.json();
+      if (data.success){
+        const idx = allData.findIndex(v=>v.id===id);
+        if (idx>-1) allData[idx].status = status;
+        updateStats();
+        render();
+      }
+    } catch(e){
+      card.querySelectorAll('button').forEach(b=>b.disabled = false);
+    }
+  }
+</script>
+</body>
+</html>
