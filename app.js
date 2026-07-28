@@ -200,8 +200,11 @@ function initVoting() {
 
 function lockVoteForm(ipLast4) {
   const form = $("#surveyForm");
-  $$("input", form).forEach((i) => (i.disabled = true));
-  form.querySelector("#submitVoteBtn").hidden = true;
+  // Leave the question choices clickable — only the submit action itself is locked.
+  const submitBtn = form.querySelector("#submitVoteBtn");
+  submitBtn.hidden = false;
+  submitBtn.disabled = true;
+  submitBtn.innerHTML = '<i class="fa-solid fa-circle-check"></i> لقد شاركت بتصويت من قبل';
   const notice = $("#alreadyVotedNotice");
   notice.hidden = false;
   $("#ipMasked").textContent = `**.**.**.${ipLast4}`;

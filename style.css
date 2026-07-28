@@ -119,7 +119,9 @@ a{color:var(--emerald);}
 }
 .btn-primary:hover{filter:brightness(1.06);}
 .btn-primary:active{transform:scale(.97);}
-.btn-primary:disabled{opacity:.5; cursor:not-allowed; box-shadow:none;}
+.btn-primary:disabled{
+  background:var(--bg-2); color:var(--text-1); opacity:1; cursor:not-allowed; box-shadow:none;
+}
 
 .btn-ghost{
   background:var(--glass); border:1.5px solid var(--gold); color:var(--gold);
