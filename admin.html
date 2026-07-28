@@ -31,7 +31,14 @@
 
 <div id="loginScreen" class="login-box">
   <h2><i class="fa-solid fa-lock"></i> دخول الإدارة</h2>
-  <p class="section-sub">أدخل كلمة المرور المكوّنة من 4 أرقام (تتغيّر كل دقيقة حسب توقيت مصر)</p>
+  <p class="section-sub">تسجيل دخول على مرحلتين: حساب الأدمن، ثم كلمة المرور المتغيّرة</p>
+
+  <input type="email" id="adminEmailInput" placeholder="البريد الإلكتروني" autocomplete="username"
+    style="width:100%;padding:12px;border-radius:12px;border:1px solid var(--glass-border);background:var(--glass);color:#fff;margin-bottom:10px;font-family:inherit;text-align:center;">
+  <input type="password" id="adminFbPasswordInput" placeholder="كلمة مرور الحساب" autocomplete="current-password"
+    style="width:100%;padding:12px;border-radius:12px;border:1px solid var(--glass-border);background:var(--glass);color:#fff;margin-bottom:14px;font-family:inherit;text-align:center;">
+
+  <p class="section-sub" style="margin-bottom:8px;">كلمة المرور المكوّنة من 4 أرقام (تتغيّر كل دقيقة حسب توقيت مصر)</p>
   <input type="text" id="adminPasswordInput" inputmode="numeric" maxlength="4" placeholder="0000" autocomplete="off">
   <button id="adminLoginBtn" class="btn-primary"><i class="fa-solid fa-right-to-bracket"></i> دخول</button>
   <p id="loginError" style="color:var(--danger);"></p>
