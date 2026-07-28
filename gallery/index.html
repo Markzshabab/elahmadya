@@ -2,35 +2,348 @@
 <html lang="ar" dir="rtl">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>معرض الرسائل المسجلة - استبيان مركز الشباب</title>
+    
+    <!-- حماية من السكرين شوت -->
+    <meta name="msapplication-config" content="none">
+    
     <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;800&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link rel="stylesheet" href="../style.css">
+    
     <style>
-        body { align-items: flex-start; padding: 40px 20px; overflow-y: auto; direction: rtl; }
-        .gallery-header { text-align: center; margin-bottom: 30px; }
-        .media-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 20px; max-width: 1200px; margin: 0 auto; width: 100%; }
-        .media-card { background: rgba(0,0,0,0.3); border-radius: 16px; padding: 15px; border: 1px solid var(--glass-border); transition: transform 0.3s ease; }
-        .media-card:hover { transform: translateY(-5px); box-shadow: 0 10px 20px rgba(0,242,254,0.2); }
-        .media-card video, .media-card audio { width: 100%; border-radius: 8px; outline: none; }
-        .media-card audio { height: 50px; margin-top: 10px; }
-        .media-meta { font-size: 0.9rem; color: #ccc; margin-top: 10px; text-align: left; }
-        .loader { text-align: center; margin: 40px 0; display: none; }
+        /* ==================== حماية الصفحة ==================== */
+        
+        /* تعطيل اختيار النصوص */
+        * {
+            -webkit-user-select: none !important;
+            -moz-user-select: none !important;
+            -ms-user-select: none !important;
+            user-select: none !important;
+        }
+        
+        body { 
+            align-items: flex-start; 
+            padding: 40px 20px; 
+            overflow-y: auto; 
+            direction: rtl;
+            /* منع سحب المحتوى */
+            -webkit-user-drag: none !important;
+            user-drag: none !important;
+        }
+        
+        .gallery-header { 
+            text-align: center; 
+            margin-bottom: 30px; 
+            position: relative;
+            z-index: 10;
+        }
+        
+        .media-grid { 
+            display: grid; 
+            grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); 
+            gap: 20px; 
+            max-width: 1200px; 
+            margin: 0 auto; 
+            width: 100%; 
+        }
+        
+        /* ==================== بطاقة الميديا مع الحماية ==================== */
+        .media-card { 
+            background: rgba(0,0,0,0.4); 
+            border-radius: 16px; 
+            padding: 15px; 
+            border: 1px solid var(--glass-border); 
+            transition: transform 0.3s ease;
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .media-card:hover { 
+            transform: translateY(-5px); 
+            box-shadow: 0 10px 30px rgba(26, 95, 42, 0.3);
+        }
+        
+        /* ==================== حماية الفيديو ==================== */
+        .video-container {
+            position: relative;
+            width: 100%;
+            border-radius: 12px;
+            overflow: hidden;
+            background: #000;
+        }
+        
+        /* طبقة الحماية فوق الفيديو */
+        .video-protection-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 5;
+            cursor: pointer;
+            background: transparent;
+        }
+        
+        /* العلامة المائية المتحركة */
+        .watermark {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%) rotate(-25deg);
+            font-size: 18px;
+            color: rgba(255, 255, 255, 0.15);
+            font-weight: bold;
+            pointer-events: none;
+            z-index: 6;
+            white-space: nowrap;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            animation: watermarkPulse 3s ease-in-out infinite;
+        }
+        
+        @keyframes watermarkPulse {
+            0%, 100% { opacity: 0.1; }
+            50% { opacity: 0.2; }
+        }
+        
+        /* علامة مائية في الزوايا */
+        .corner-watermark {
+            position: absolute;
+            bottom: 10px;
+            right: 10px;
+            font-size: 11px;
+            color: rgba(244, 196, 48, 0.4);
+            pointer-events: none;
+            z-index: 7;
+            font-weight: 600;
+        }
+        
+        .media-card video, 
+        .media-card audio { 
+            width: 100%; 
+            border-radius: 8px; 
+            outline: none;
+            display: block;
+            /* إخفاء عناصر التحكم الأصلية */
+            pointer-events: none;
+        }
+        
+        .media-card audio { 
+            height: 50px; 
+            margin-top: 10px;
+            pointer-events: auto;
+        }
+        
+        /* أزرار تحكم مخصصة للفيديو */
+        .video-controls {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            padding: 10px;
+            background: linear-gradient(transparent, rgba(0,0,0,0.8));
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 15px;
+            z-index: 8;
+            opacity: 0;
+            transition: opacity 0.3s ease;
+        }
+        
+        .video-container:hover .video-controls {
+            opacity: 1;
+        }
+        
+        .control-btn {
+            background: rgba(255,255,255,0.2);
+            border: none;
+            color: white;
+            width: 36px;
+            height: 36px;
+            border-radius: 50%;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.2s ease;
+            backdrop-filter: blur(4px);
+        }
+        
+        .control-btn:hover {
+            background: rgba(26, 95, 42, 0.8);
+            transform: scale(1.1);
+        }
+        
+        .play-btn-large {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 60px;
+            height: 60px;
+            background: rgba(26, 95, 42, 0.9);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-size: 24px;
+            cursor: pointer;
+            z-index: 9;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.5);
+        }
+        
+        .play-btn-large:hover {
+            background: #1a5f2a;
+            transform: translate(-50%, -50%) scale(1.1);
+        }
+        
+        .play-btn-large.hidden {
+            opacity: 0;
+            pointer-events: none;
+        }
+        
+        .media-meta { 
+            font-size: 0.9rem; 
+            color: #ccc; 
+            margin-top: 10px; 
+            text-align: left;
+        }
+        
+        .loader { 
+            text-align: center; 
+            margin: 40px 0; 
+            display: none; 
+        }
+        
+        /* رسالة تحذيرية عند محاولة التصوير */
+        .warning-toast {
+            position: fixed;
+            top: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: linear-gradient(135deg, #c41e3a, #e74c3c);
+            color: white;
+            padding: 15px 30px;
+            border-radius: 12px;
+            font-family: 'Cairo', sans-serif;
+            font-size: 14px;
+            font-weight: 600;
+            z-index: 99999;
+            box-shadow: 0 10px 40px rgba(196, 30, 58, 0.4);
+            display: none;
+            align-items: center;
+            gap: 10px;
+            animation: slideDown 0.3s ease;
+        }
+        
+        @keyframes slideDown {
+            from { opacity: 0; transform: translateX(-50%) translateY(-20px); }
+            to { opacity: 1; transform: translateX(-50%) translateY(0); }
+        }
+        
+        /* شريط التقدم المحمي */
+        .progress-bar {
+            position: absolute;
+            bottom: 45px;
+            left: 10px;
+            right: 10px;
+            height: 4px;
+            background: rgba(255,255,255,0.2);
+            border-radius: 2px;
+            z-index: 8;
+            cursor: pointer;
+        }
+        
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #1a5f2a, #f4c430);
+            border-radius: 2px;
+            width: 0%;
+            transition: width 0.1s linear;
+        }
+        
+        /* تلميح الوقت */
+        .time-display {
+            position: absolute;
+            bottom: 48px;
+            right: 15px;
+            font-size: 11px;
+            color: white;
+            z-index: 9;
+            text-shadow: 0 1px 3px rgba(0,0,0,0.8);
+            font-family: monospace;
+        }
+        
+        /* حماية للموبايل - تعطيل long press */
+        @media (pointer: coarse) {
+            .video-protection-overlay {
+                touch-action: manipulation;
+            }
+            
+            .media-card video {
+                -webkit-touch-callout: none !important;
+            }
+        }
+        
+        /* إشعار الحماية */
+        .protection-notice {
+            text-align: center;
+            grid-column: 1 / -1;
+            padding: 20px;
+            background: rgba(26, 95, 42, 0.1);
+            border-radius: 12px;
+            border: 1px dashed rgba(26, 95, 42, 0.3);
+            margin-bottom: 20px;
+        }
+        
+        .protection-notice p {
+            color: var(--text-light);
+            font-size: 0.9rem;
+            margin: 0;
+        }
+        
+        .protection-notice i {
+            color: var(--primary);
+            margin-left: 8px;
+        }
     </style>
 </head>
 <body>
+    <!-- رسالة تحذيرية -->
+    <div class="warning-toast" id="warningToast">
+        <i class="fas fa-shield-alt"></i>
+        <span>⚠️ هذا المحتوى محمي ولا يمكن تصويره أو تسجيله</span>
+    </div>
+
     <div style="width: 100%;">
         <div class="gallery-header">
             <h1><i class="fas fa-photo-video text-primary"></i> معرض الرسائل المسجلة</h1>
             <p>رسائل وآراء أهالي قرية الأحمدية حول مركز الشباب</p>
+            
+            <!-- إشعار الحماية -->
+            <div class="protection-notice">
+                <p><i class="fas fa-lock"></i> جميع الفيديوهات والصوتيات محمية ولا يمكن تصويرها أو تسجيلها أو تنزيلها</p>
+            </div>
+            
             <a href="../index.html" class="btn-outline" style="display: inline-flex; width: auto; margin-top: 15px; text-decoration: none;">
                 <i class="fas fa-arrow-right"></i> العودة للاستبيان الرئيسي
             </a>
         </div>
+        
         <div class="media-grid" id="gallery-grid"></div>
-        <div class="loader" id="loading-spinner"><i class="fas fa-spinner fa-spin fa-2x text-primary"></i><p style="margin-top: 10px;">جاري تحميل الرسائل...</p></div>
+        <div class="loader" id="loading-spinner">
+            <i class="fas fa-spinner fa-spin fa-2x text-primary"></i>
+            <p style="margin-top: 10px;">جاري تحميل الرسائل...</p>
+        </div>
     </div>
+
+    <!-- سكريبت الحماية -->
     <script src="gallery.js"></script>
+    <script src="protection.js"></script>
 </body>
 </html>
