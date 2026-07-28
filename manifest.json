@@ -1,20 +1,13 @@
 {
-  "name": "استبيان مركز شباب الأحمدية",
-  "short_name": "استبيان الأحمدية",
-  "description": "استبيان عام لأهالي قرية الأحمدية حول مستقبل مركز الشباب",
-  "start_url": "./index.html",
-  "scope": "./",
+  "name": "Al Ahmadiya Youth Survey",
+  "short_name": "Youth Survey",
+  "start_url": "/index.html",
   "display": "standalone",
-  "orientation": "portrait",
-  "background_color": "#080B12",
-  "theme_color": "#0B0F1A",
-  "dir": "rtl",
-  "lang": "ar",
-  "categories": ["government", "social"],
+  "background_color": "#0f2027",
+  "theme_color": "#00f2fe",
+  "description": "Public survey for Al Ahmadiya Village Youth Center.",
   "icons": [
-    { "src": "assets/icons/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
-    { "src": "assets/icons/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
-    { "src": "assets/icons/icon-maskable-192.png", "sizes": "192x192", "type": "image/png", "purpose": "maskable" },
-    { "src": "assets/icons/icon-maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+    { "src": "assets/icon-192.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "assets/icon-512.png", "sizes": "512x512", "type": "image/png" }
   ]
 }
