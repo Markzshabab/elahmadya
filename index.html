@@ -21,7 +21,7 @@
     <!-- Fonts & Icons -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@300;400;600;700;800;900&display=display" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@300;400;600;700;800;900&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     
     <link rel="stylesheet" href="style.css">
@@ -32,7 +32,7 @@
 
     <main id="app-container" class="glass-panel">
         
-        <!-- شاشة الترحيب -->
+        <!-- شاشة الترحيب المحدثة ببطاقتين/زرين -->
         <section id="s-welcome" class="active-screen">
             <!-- شعار SVG متحرك بتأثير الإضاءة (Glow & Pulse) -->
             <div class="logo-container">
@@ -47,9 +47,15 @@
             <h1>مركز شباب قرية الأحمدية</h1>
             <p class="subtitle">استبيان قياس الأداء وتقييم الإدارة (2019 - 2024)</p>
             
-            <button class="btn-primary" onclick="app.nextScreen('s-info-1')">
-                ابدأ الاستبيان <i class="fas fa-arrow-left"></i>
-            </button>
+            <div class="action-cards">
+                <button class="btn-primary" onclick="app.nextScreen('s-info-1')">
+                    <i class="fas fa-poll-h"></i> ابدأ التصويت الآن
+                </button>
+                
+                <button class="btn-outline" onclick="app.viewStats()">
+                    <i class="fas fa-chart-pie"></i> عرض نتائج التصويت الحالي
+                </button>
+            </div>
         </section>
 
         <!-- الشاشة التعريفية 1: الأنشطة الرياضية -->
@@ -82,7 +88,7 @@
             <ul class="info-list">
                 <li>دعم وتعزيز العمل التطوعي.</li>
                 <li>مباشرة خدمة أهالي القرية وتلبية احتياجاتهم.</li>
-                <li>تغريس وتعزيز الانتماء الوطني.</li>
+                <li>ترسيخ وتعزيز الانتماء الوطني.</li>
                 <li>نشر الوعي البيئي والمحافظة على القرية.</li>
             </ul>
             <button class="btn-primary" onclick="app.nextScreen('s-info-4')">التالي</button>
@@ -140,7 +146,7 @@
             <div id="media-controls">
                 <button class="btn-primary" onclick="app.startVideo()"><i class="fas fa-video"></i> تسجيل فيديو</button>
                 <button class="btn-primary" onclick="app.startAudio()"><i class="fas fa-microphone"></i> تسجيل صوتي</button>
-                <button class="btn-secondary" onclick="app.submitSurvey()">تخطي وإرسال الصوت فقط</button>
+                <button class="btn-secondary" onclick="app.submitSurvey()">تخطي وإرسال التصويت فقط</button>
             </div>
 
             <div id="recording-ui" class="hidden">
@@ -168,10 +174,13 @@
                 <div class="chart-card"><canvas id="q3Chart"></canvas></div>
             </div>
             <div class="stats-counters">
-                <div class="stat-box">رسائل الفيديو المقبولة: <span id="vid-count">0</span></div>
-                <div class="stat-box">الرسائل الصوتية المقبولة: <span id="aud-count">0</span></div>
+                <div class="stat-box">رسائل الفيديو: <span id="vid-count">0</span></div>
+                <div class="stat-box">الرسائل الصوتية: <span id="aud-count">0</span></div>
             </div>
-            <a href="gallery/" class="btn-secondary" style="text-decoration:none; display:block; margin-top:15px;">عرض معرض الرسائل المسجلة</a>
+            <div style="margin-top: 15px; display: flex; gap: 10px;">
+                <a href="gallery/" class="btn-secondary" style="text-decoration:none; flex: 1;"><i class="fas fa-images"></i> معرض الرسائل</a>
+                <button class="btn-outline" onclick="app.nextScreen('s-welcome')" style="flex: 1; margin-bottom: 0;"><i class="fas fa-home"></i> الرئيسية</button>
+            </div>
         </section>
     </main>
 

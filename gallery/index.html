@@ -1,38 +1,41 @@
 <!DOCTYPE html>
-<html lang="en" dir="ltr">
+<html lang="ar" dir="rtl">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Public Media Gallery - Al Ahmadiya Survey</title>
+    <title>معرض الرسائل المسجلة - استبيان مركز الشباب</title>
     <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;800&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link rel="stylesheet" href="../style.css">
     <style>
-        body { align-items: flex-start; padding: 40px 20px; overflow-y: auto; }
-        .gallery-header { text-align: center; margin-bottom: 40px; }
-        .media-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 20px; max-width: 1200px; margin: 0 auto; width: 100%; }
+        body { align-items: flex-start; padding: 40px 20px; overflow-y: auto; direction: rtl; }
+        .gallery-header { text-align: center; margin-bottom: 30px; }
+        .media-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 20px; max-width: 1200px; margin: 0 auto; width: 100%; }
         .media-card { background: rgba(0,0,0,0.3); border-radius: 16px; padding: 15px; border: 1px solid var(--glass-border); transition: transform 0.3s ease; }
         .media-card:hover { transform: translateY(-5px); box-shadow: 0 10px 20px rgba(0,242,254,0.2); }
         .media-card video, .media-card audio { width: 100%; border-radius: 8px; outline: none; }
         .media-card audio { height: 50px; margin-top: 10px; }
-        .media-meta { font-size: 0.9rem; color: #ccc; margin-top: 10px; text-align: right; }
+        .media-meta { font-size: 0.9rem; color: #ccc; margin-top: 10px; text-align: left; }
         .loader { text-align: center; margin: 40px 0; display: none; }
     </style>
 </head>
 <body>
     <div style="width: 100%;">
         <div class="gallery-header">
-            <h1><i class="fas fa-photo-video"></i> Public Media Gallery</h1>
-            <p>Voices and opinions from the residents of Al Ahmadiya</p>
-            <a href="../index.html" class="btn-outline" style="display: inline-block; width: auto; margin-top: 10px;"><i class="fas fa-home"></i> Back to Survey</a>
+            <h1><i class="fas fa-photo-video text-primary"></i> معرض الرسائل المسجلة</h1>
+            <p>رسائل وآراء أهالي قرية الأحمدية حول مركز الشباب</p>
+            <a href="../index.html" class="btn-outline" style="display: inline-flex; width: auto; margin-top: 15px; text-decoration: none;">
+                <i class="fas fa-arrow-right"></i> العودة للاستبيان الرئيسي
+            </a>
         </div>
 
         <div class="media-grid" id="gallery-grid">
-            <!-- Media cards injected here -->
+            <!-- يتم إضافة بطاقات الفيديوهات والصوتيات هنا عبر الجافاسكريبت -->
         </div>
         
         <div class="loader" id="loading-spinner">
             <i class="fas fa-spinner fa-spin fa-2x text-primary"></i>
+            <p style="margin-top: 10px;">جاري تحميل الرسائل...</p>
         </div>
     </div>
 
