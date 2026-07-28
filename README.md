@@ -1,45 +1,42 @@
-# استبيان مركز شباب الأحمدية
+# استبيان مركز شباب الأحمدية — Al Ahmadiya Youth Center Public Survey
 
-استبيان عام لأهالي قرية الأحمدية حول مستقبل مركز الشباب — نتائج فورية وشفافة.
+PWA عام لأهالي قرية الأحمدية للتصويت على استبيان مركز الشباب، مع مشاركات فيديو/فويس نوت تخضع للمراجعة، ولوحة نتائج مباشرة، ولوحة تحكم إدارية محمية بكلمة مرور متغيرة كل دقيقة.
 
-## المميزات
+## بنية المشروع
 
-- تصويت آمن (صوت واحد فقط لكل شخص)
-- مشاركة عبر واتساب مدمجة
-- تسجيل فيديو / صوت (30 ثانية)
-- نتائج مباشرة مع رسوم بيانية
-- لوحة تحكم للإدارة
-- PWA — يمكن تثبيته كتطبيق
-- تصميم متجاوب (جوال + سطح المكتب)
+```
+ahmadiya-survey/
+├── index.html              الصفحة الرئيسية (PWA)
+├── style.css                التصميم الكامل
+├── app.js                    منطق الواجهة (تصويت، تسجيل، تنقّل)
+├── animations.js             حركات GSAP + جزيئات الخلفية
+├── charts.js                 رسوم Chart.js المتصلة بـ Firebase
+├── firebase-config.js        تهيئة Firebase (استبدل القيم بمشروعك)
+├── manifest.json             بيانات تثبيت PWA
+├── service-worker.js         التخزين المؤقت + دعم عدم الاتصال
+├── admin.html / admin.js     لوحة تحكم الإدارة
+├── cloudflare/
+│   ├── worker.js              كود Cloudflare Worker الكامل
+│   └── wrangler.toml          إعدادات النشر
+├── firebase/
+│   └── database.rules.json    قواعد أمان قاعدة البيانات
+├── assets/icons/               أيقونات PWA
+└── docs/                       أدلة النشر التفصيلية
+```
 
-## النشر على GitHub Pages
+## لماذا التصويت غير قابل للتعديل؟
 
-1. أنشئ مستودع جديد على GitHub
-2. ارفع جميع ملفات المشروع (بدون مجلد `.git`)
-3. فعّل GitHub Pages من Settings > Pages > Deploy from branch (main, / (root))
-4. الموقع سيكون متاحًا على: `https://YOUR_USERNAME.github.io/elahmadya/`
+كل صوت يُخزَّن باستخدام `ipHash` (تجزيء IP + مفتاح سري) كمفتاح فريد في `votes_index`. الـ Worker يرفض أي طلب تصويت ثانٍ من نفس `ipHash` بكود الحالة 409، ولا يوجد أي مسار API عام للتعديل أو الحذف — الحذف ممكن فقط من لوحة الإدارة، ويُستخدم فقط في حالة تصويت مزوّر مؤكد (ويُسجَّل في `logs`). المستخدم يرى فقط آخر 4 أرقام من IP الخاص به كتأكيد، ولا يُخزَّن ولا يُعرض IP كامل في أي مكان بالواجهة.
 
-## نشر Cloudflare Worker
+## البدء السريع
 
-1. أنشئ مشروع على Cloudflare Workers
-2. انسخ محتوى `worker.js` كملف `index.js` في المشروع
-3. أضف المتغيرات البيئية (Environment Variables) في Cloudflare Dashboard:
-   - `FIREBASE_DB_URL` — رابط قاعدة بيانات Firebase
-   - `FIREBASE_SECRET` — Firebase Database Secret
-   - `TURNSTILE_SECRET` — Cloudflare Turnstile Secret Key
-   - `IP_SALT` — أي نص عشوائي لتشفير IPs
-   - `R2_PUBLIC_BASE_URL` — (اختياري) رابط العام لـ R2 bucket
-4. اربط KV namespace باسم `RATE_LIMIT_KV`
-5. اربط R2 bucket باسم `R2_BUCKET` (اختياري)
+1. اقرأ `docs/DEPLOY_FIREBASE.md` وأنشئ مشروع Firebase.
+2. اقرأ `docs/DEPLOY_WORKER.md` وانشر الـ Worker على Cloudflare.
+3. حدّث `CONFIG.API_BASE` في `app.js` و `admin.js` برابط الـ Worker.
+4. حدّث `ALLOWED_ORIGIN` في `cloudflare/worker.js` برابط GitHub Pages الخاص بك.
+5. اقرأ `docs/DEPLOY_GITHUB_PAGES.md` لرفع الموقع.
+6. استبدل الأيقونات في `assets/icons/` بشعار المركز الحقيقي (المقاسات نفسها).
 
-## الإعدادات المطلوبة
+## ملاحظة أمنية مهمة
 
-### في `app.js` و `admin.js`
-- غيّر `CONFIG.API_BASE` إلى رابط الوركر الخاص بك
-
-### في `worker.js`
-- أضف دومين GitHub Pages الخاص بك في `ALLOWED_ORIGINS`
-
----
-
-تم التطوير بواسطة صفحة **[الأحمدية بلدنا](https://www.facebook.com/profile.php?id=100036184718999)** على فيسبوك
+كلمة مرور الإدارة (HHMM بتوقيت مصر) هي **حماية إضافية بسيطة**، وليست بديلاً عن مصادقة حقيقية. للاستخدام الفعلي في الإنتاج، يُنصح بشدة بإضافة Firebase Authentication (بريد/كلمة مرور) كطبقة حماية أساسية، واستخدام كلمة المرور المتغيرة كطبقة ثانية فقط (2FA)، كما هو موضح في `docs/DEPLOY_WORKER.md`.
