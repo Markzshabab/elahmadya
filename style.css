@@ -165,12 +165,19 @@ a{color:var(--emerald);}
 }
 .question-card legend{font-weight:800; font-size:1.02rem; margin-bottom:14px; padding:0;}
 .choice{
-  display:flex; align-items:center; gap:12px; padding:14px 16px;
+  display:flex; align-items:center; justify-content:center; gap:12px; padding:14px 16px;
   border-radius:var(--radius-md); border:1px solid var(--glass-border);
-  margin-bottom:10px; cursor:pointer; transition:border-color .2s, background .2s;
+  margin-bottom:10px; cursor:pointer; text-align:center; font-weight:600;
+  transition:border-color .2s, background .2s, transform .15s;
 }
-.choice:has(input:checked){border-color:var(--emerald); background:rgba(22,199,154,.12);}
-.choice input{accent-color:var(--emerald); width:20px; height:20px;}
+.choice:active{transform:scale(.98);}
+.choice:has(input:checked){border-color:var(--emerald); background:rgba(22,199,154,.12); color:var(--emerald);}
+.choice:has(input:focus-visible){outline:2px solid var(--emerald); outline-offset:2px;}
+/* Hide the native radio dot/mark — the whole label acts as the button */
+.choice input{
+  position:absolute; width:1px; height:1px; padding:0; margin:-1px;
+  overflow:hidden; clip:rect(0,0,0,0); white-space:nowrap; border:0;
+}
 
 .turnstile-box{margin:18px 0;}
 .fine-print{color:var(--text-1); font-size:.78rem; text-align:center; margin-top:12px;}
