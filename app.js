@@ -2,10 +2,13 @@
 // APP CONFIG — point this at your deployed Cloudflare Worker
 // =========================================================
 const CONFIG = {
-  API_BASE: "https://ahmadiya-survey-worker.YOUR_SUBDOMAIN.workers.dev",
+  // Cloudflare Worker URL — update this to your actual deployed worker
+  API_BASE: "https://markzshabab.studusa05.workers.de",
   TURNSTILE_SITE_KEY: "0x4AAAAAAD_b8KTI0Np47kkI",
   MAX_RECORD_SECONDS: 30,
   MAX_FILE_BYTES: 100 * 1024 * 1024,
+  // Site URL used for sharing
+  SITE_URL: window.location.origin + window.location.pathname,
 };
 
 const $ = (sel, el = document) => el.querySelector(sel);
@@ -13,12 +16,24 @@ const $$ = (sel, el = document) => [...el.querySelectorAll(sel)];
 
 let soundEnabled = true;
 let audioCtx = null;
+let audioUnlocked = false;
 
+/* ============================================================
+   AUDIO — only create/resume after a real user gesture
+   ============================================================ */
 function unlockAudio() {
-  if (!audioCtx) {
-    try { audioCtx = new (window.AudioContext || window.webkitAudioContext)(); } catch (e) { return; }
+  if (audioUnlocked) return;
+  audioUnlocked = true;
+  try {
+    if (!audioCtx) {
+      audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    }
+    if (audioCtx.state === "suspended") {
+      audioCtx.resume();
+    }
+  } catch (e) {
+    /* audio not supported — nothing to do */
   }
-  if (audioCtx.state === "suspended") audioCtx.resume().catch(() => {});
 }
 
 /* ============================================================
@@ -26,6 +41,7 @@ function unlockAudio() {
    ============================================================ */
 function toast(msg, ms = 3200) {
   const el = $("#toast");
+  if (!el) return;
   el.textContent = msg;
   el.classList.add("show");
   clearTimeout(el._t);
@@ -36,7 +52,7 @@ function toast(msg, ms = 3200) {
    INTRO SEQUENCE
    ============================================================ */
 function playChime() {
-  if (!soundEnabled || !audioCtx || audioCtx.state !== "running") return; // no gesture yet — skip silently, no console warning
+  if (!soundEnabled || !audioCtx || audioCtx.state !== "running") return;
   try {
     const ctx = audioCtx;
     const o = ctx.createOscillator();
@@ -56,11 +72,22 @@ function playChime() {
 let introSkipped = false;
 
 async function runIntro() {
+  const skipBtn = $("#skipIntro");
+  if (!skipBtn) { initApp(); return; }
+
   const skip = () => {
-    introSkipped = true; // stop the background sequence below from re-running finishIntro()
+    introSkipped = true;
     finishIntro();
   };
-  $("#skipIntro").addEventListener("click", skip);
+  skipBtn.addEventListener("click", () => {
+    unlockAudio(); // unlock audio on first user gesture
+    skip();
+  });
+
+  // Also unlock audio on any user interaction during intro
+  const introEl = $("#intro");
+  introEl.addEventListener("pointerdown", unlockAudio, { once: true });
+  introEl.addEventListener("keydown", unlockAudio, { once: true });
 
   const cards = $$(".info-card");
   const seenIntro = sessionStorage.getItem("ahmadiya_intro_seen");
@@ -90,43 +117,60 @@ async function runIntro() {
 let introFinished = false;
 
 function finishIntro() {
-  if (introFinished) return; // guard against double-invocation (e.g. skip + natural completion)
+  if (introFinished) return;
   introFinished = true;
 
   const intro = $("#intro");
-  // Move focus off any element inside #intro (e.g. the Skip button) before
-  // hiding it with aria-hidden, otherwise assistive tech gets a focused-but-hidden element.
-  if (intro.contains(document.activeElement)) document.activeElement.blur();
+
+  // FIX: Use `inert` attribute to prevent focus AND hide from accessibility tree.
+  // Also immediately set aria-hidden. Then move focus to <body> so no element
+  // inside the fading intro retains focus.
+  intro.setAttribute("aria-hidden", "true");
+  intro.setAttribute("inert", "");
+
+  // Move focus out of the intro element
+  document.body.focus();
+  const firstFocusable = document.querySelector('#app button, #app a, #app input');
+  if (firstFocusable) firstFocusable.setAttribute("tabindex", "-1");
+  if (firstFocusable) firstFocusable.focus();
 
   intro.style.transition = "opacity .6s ease";
   intro.style.opacity = "0";
   setTimeout(() => {
     intro.hidden = true;
-    intro.setAttribute("aria-hidden", "true");
     $("#app").hidden = false;
     initApp();
-    $("#app").setAttribute("tabindex", "-1");
-    $("#app").focus({ preventScroll: true });
+    updatePageTitle("survey");
   }, 620);
 }
 
 const wait = (ms) => new Promise((r) => setTimeout(r, ms));
 
 /* ============================================================
+   PAGE TITLE — update <title> based on active view
+   ============================================================ */
+const PAGE_TITLES = {
+  survey: "استبيان مركز شباب الأحمدية",
+  media: "سجّل مشاركتك — مركز شباب الأحمدية",
+  wall: "مشاركات الأهالي — مركز شباب الأحمدية",
+  stats: "النتائج المباشرة — مركز شباب الأحمدية",
+};
+
+function updatePageTitle(viewName) {
+  document.title = PAGE_TITLES[viewName] || PAGE_TITLES.survey;
+}
+
+/* ============================================================
    NAVIGATION (bottom tab bar + views)
    ============================================================ */
 function initNav() {
   $$(".tab-btn").forEach((btn) => {
-    btn.addEventListener("click", () => switchView(btn.dataset.view));
+    btn.addEventListener("click", () => {
+      unlockAudio(); // unlock on any interaction
+      switchView(btn.dataset.view);
+    });
   });
 }
-
-const VIEW_TITLES = {
-  survey: "استبيان مركز شباب الأحمدية | التصويت",
-  media: "استبيان مركز شباب الأحمدية | سجّل مشاركتك",
-  wall: "استبيان مركز شباب الأحمدية | مشاركات الأهالي",
-  stats: "استبيان مركز شباب الأحمدية | النتائج المباشرة",
-};
 
 function switchView(name) {
   $$(".view").forEach((v) => v.classList.remove("active"));
@@ -136,8 +180,10 @@ function switchView(name) {
     b.classList.toggle("active", active);
     b.setAttribute("aria-selected", active ? "true" : "false");
   });
-  document.title = VIEW_TITLES[name] || document.title;
+  updatePageTitle(name);
   if (name === "wall") loadMediaWall();
+  // Scroll to top when switching views
+  window.scrollTo({ top: 0, behavior: "smooth" });
 }
 
 /* ============================================================
@@ -145,6 +191,7 @@ function switchView(name) {
    ============================================================ */
 function initVoting() {
   const form = $("#surveyForm");
+  if (!form) return;
   const votedBefore = localStorage.getItem("ahmadiya_voted") === "1";
   if (votedBefore) lockVoteForm(localStorage.getItem("ahmadiya_ip_last4") || "****");
 
@@ -168,9 +215,6 @@ function initVoting() {
     submitBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> جاري الإرسال...';
 
     try {
-      // The Worker is the ONLY place the real IP is read and hashed.
-      // The client never sees or sends its own IP — it is read server-side
-      // from the request headers, so it cannot be spoofed from the browser.
       const res = await fetch(`${CONFIG.API_BASE}/api/vote`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -200,14 +244,14 @@ function initVoting() {
 
 function lockVoteForm(ipLast4) {
   const form = $("#surveyForm");
-  // Leave the question choices clickable — only the submit action itself is locked.
+  if (!form) return;
+  $$("input", form).forEach((i) => (i.disabled = true));
   const submitBtn = form.querySelector("#submitVoteBtn");
-  submitBtn.hidden = false;
-  submitBtn.disabled = true;
-  submitBtn.innerHTML = '<i class="fa-solid fa-circle-check"></i> لقد شاركت بتصويت من قبل';
+  if (submitBtn) submitBtn.hidden = true;
   const notice = $("#alreadyVotedNotice");
-  notice.hidden = false;
-  $("#ipMasked").textContent = `**.**.**.${ipLast4}`;
+  if (notice) notice.hidden = false;
+  const ipMasked = $("#ipMasked");
+  if (ipMasked) ipMasked.textContent = `**.**.**.${ipLast4}`;
 }
 
 function confettiBurst() {
@@ -224,15 +268,18 @@ let recorder = null;
 let recordedChunks = [];
 let recordTimer = null;
 let recordSeconds = 0;
-let currentMode = "video"; // "video" | "voice"
+let currentMode = "video";
 
 function initMediaCapture() {
   $$(".mode-btn").forEach((btn) => {
     btn.addEventListener("click", () => setMode(btn.dataset.mode));
   });
-  $("#startRec").addEventListener("click", startRecording);
-  $("#stopRec").addEventListener("click", stopRecording);
-  $("#retakeRec").addEventListener("click", resetCapture);
+  const startRec = $("#startRec");
+  const stopRec = $("#stopRec");
+  const retakeRec = $("#retakeRec");
+  if (startRec) startRec.addEventListener("click", startRecording);
+  if (stopRec) stopRec.addEventListener("click", stopRecording);
+  if (retakeRec) retakeRec.addEventListener("click", resetCapture);
 }
 
 function setMode(mode) {
@@ -242,8 +289,10 @@ function setMode(mode) {
     b.classList.toggle("active", active);
     b.setAttribute("aria-selected", active ? "true" : "false");
   });
-  $("#cameraPreview").hidden = mode !== "video";
-  $("#voiceStage").hidden = mode !== "voice";
+  const cameraPreview = $("#cameraPreview");
+  const voiceStage = $("#voiceStage");
+  if (cameraPreview) cameraPreview.hidden = mode !== "video";
+  if (voiceStage) voiceStage.hidden = mode !== "voice";
   resetCapture();
 }
 
@@ -257,7 +306,7 @@ async function startRecording() {
     if (currentMode === "video") {
       $("#cameraPreview").srcObject = mediaStream;
     } else {
-      $("#voiceOrb").classList.add("recording");
+      $("#voiceOrb")?.classList.add("recording");
     }
 
     recordedChunks = [];
@@ -268,12 +317,14 @@ async function startRecording() {
     recorder.start();
 
     recordSeconds = 0;
-    $("#recTimer").textContent = "00:00";
+    const recTimerEl = $("#recTimer");
+    if (recTimerEl) recTimerEl.textContent = "00:00";
     recordTimer = setInterval(() => {
       recordSeconds++;
       const m = String(Math.floor(recordSeconds / 60)).padStart(2, "0");
       const s = String(recordSeconds % 60).padStart(2, "0");
-      $("#recTimer").textContent = `${m}:${s}`;
+      const recTimerEl = $("#recTimer");
+      if (recTimerEl) recTimerEl.textContent = `${m}:${s}`;
       if (recordSeconds >= CONFIG.MAX_RECORD_SECONDS) stopRecording();
     }, 1000);
 
@@ -288,8 +339,10 @@ function stopRecording() {
   clearInterval(recordTimer);
   if (recorder && recorder.state !== "inactive") recorder.stop();
   if (mediaStream) mediaStream.getTracks().forEach((t) => t.stop());
-  $("#stopRec").hidden = true;
-  $("#retakeRec").hidden = false;
+  const stopRec = $("#stopRec");
+  const retakeRec = $("#retakeRec");
+  if (stopRec) stopRec.hidden = true;
+  if (retakeRec) retakeRec.hidden = false;
 }
 
 async function onRecordingStopped() {
@@ -325,10 +378,14 @@ async function onRecordingStopped() {
 function resetCapture() {
   clearInterval(recordTimer);
   recordSeconds = 0;
-  $("#recTimer").textContent = "00:00";
-  $("#startRec").hidden = false;
-  $("#stopRec").hidden = true;
-  $("#retakeRec").hidden = true;
+  const recTimerEl = $("#recTimer");
+  if (recTimerEl) recTimerEl.textContent = "00:00";
+  const startRec = $("#startRec");
+  const stopRec = $("#stopRec");
+  const retakeRec = $("#retakeRec");
+  if (startRec) startRec.hidden = false;
+  if (stopRec) stopRec.hidden = true;
+  if (retakeRec) retakeRec.hidden = true;
   $("#voiceOrb")?.classList.remove("recording");
 }
 
@@ -349,9 +406,14 @@ async function loadMediaWall() {
 
   const wall = $("#mediaWall");
   const empty = $("#wallEmpty");
+  if (!wall) return;
   wall.innerHTML = "";
   if (!wallQueue.length) {
-    wall.appendChild(empty);
+    const emptyEl = empty ? empty.cloneNode(true) : null;
+    if (emptyEl) {
+      emptyEl.removeAttribute("hidden");
+      wall.appendChild(emptyEl);
+    }
     return;
   }
 
@@ -389,7 +451,7 @@ function playWallItem(idx) {
 }
 
 /* ============================================================
-   PWA INSTALL — real standalone app install, not a homescreen shortcut
+   PWA INSTALL — real standalone app install
    ============================================================ */
 let deferredInstallPrompt = null;
 
@@ -402,22 +464,31 @@ function initInstallBanner() {
     e.preventDefault();
     deferredInstallPrompt = e;
     if (!sessionStorage.getItem("ahmadiya_install_dismissed")) {
-      $("#installBanner").hidden = false;
+      const banner = $("#installBanner");
+      if (banner) banner.hidden = false;
     }
   });
 
-  $("#installBtn").addEventListener("click", async () => {
-    if (!deferredInstallPrompt) return;
-    deferredInstallPrompt.prompt();
-    const choice = await deferredInstallPrompt.userChoice;
-    if (choice.outcome === "accepted") toast("تم تثبيت التطبيق بنجاح");
-    $("#installBanner").hidden = true;
-  });
+  const installBtn = $("#installBtn");
+  if (installBtn) {
+    installBtn.addEventListener("click", async () => {
+      if (!deferredInstallPrompt) return;
+      deferredInstallPrompt.prompt();
+      const choice = await deferredInstallPrompt.userChoice;
+      if (choice.outcome === "accepted") toast("تم تثبيت التطبيق بنجاح");
+      const banner = $("#installBanner");
+      if (banner) banner.hidden = true;
+    });
+  }
 
-  $("#dismissInstall").addEventListener("click", () => {
-    $("#installBanner").hidden = true;
-    sessionStorage.setItem("ahmadiya_install_dismissed", "1");
-  });
+  const dismissInstall = $("#dismissInstall");
+  if (dismissInstall) {
+    dismissInstall.addEventListener("click", () => {
+      const banner = $("#installBanner");
+      if (banner) banner.hidden = true;
+      sessionStorage.setItem("ahmadiya_install_dismissed", "1");
+    });
+  }
 }
 
 /* ============================================================
@@ -433,12 +504,105 @@ function registerServiceWorker() {
    SOUND TOGGLE
    ============================================================ */
 function initSoundToggle() {
-  $("#soundToggle").addEventListener("click", () => {
+  const soundToggle = $("#soundToggle");
+  if (!soundToggle) return;
+  soundToggle.addEventListener("click", () => {
+    unlockAudio();
     soundEnabled = !soundEnabled;
-    $("#soundToggle").innerHTML = soundEnabled
+    soundToggle.innerHTML = soundEnabled
       ? '<i class="fa-solid fa-volume-high"></i>'
       : '<i class="fa-solid fa-volume-xmark"></i>';
   });
+}
+
+/* ============================================================
+   WHATSAPP SHARE
+   ============================================================ */
+const WA_MESSAGE = `*السلام عليكم* 🌙
+
+من أجل بلدنا *الأحمدية* أردنا معرفة رأيك في هذا الاستبيان 🏘️
+
+🔗 رابط الاستبيان:
+${window.location.origin + window.location.pathname}
+
+شارك رأيك وصوتك — صوتك يهم! 🗳️`;
+
+function initWhatsAppShare() {
+  const waBtn = $("#whatsappShareBtn");
+  const waModal = $("#whatsappModal");
+  if (!waBtn || !waModal) return;
+
+  waBtn.addEventListener("click", () => {
+    // Set preview text
+    const previewEl = $("#waPreviewText");
+    if (previewEl) previewEl.innerHTML = WA_MESSAGE.replace(/\n/g, "<br>");
+
+    // Set direct link
+    const directLink = $("#waDirectLink");
+    if (directLink) {
+      const encodedMsg = encodeURIComponent(WA_MESSAGE);
+      directLink.href = `https://wa.me/?text=${encodedMsg}`;
+    }
+
+    waModal.hidden = false;
+    waModal.setAttribute("aria-hidden", "false");
+  });
+
+  // Close modal handlers
+  const closeBtns = $$("[data-close-modal]", waModal);
+  closeBtns.forEach((btn) => {
+    btn.addEventListener("click", () => closeWaModal(waModal));
+  });
+  waModal.addEventListener("keydown", (e) => {
+    if (e.key === "Escape") closeWaModal(waModal);
+  });
+
+  // Copy message
+  const copyBtn = $("#waCopyBtn");
+  if (copyBtn) {
+    copyBtn.addEventListener("click", async () => {
+      try {
+        await navigator.clipboard.writeText(WA_MESSAGE);
+        toast("تم نسخ الرسالة بنجاح! الصقها في واتساب");
+      } catch {
+        // Fallback for older browsers
+        const ta = document.createElement("textarea");
+        ta.value = WA_MESSAGE;
+        ta.style.position = "fixed";
+        ta.style.left = "-9999px";
+        document.body.appendChild(ta);
+        ta.select();
+        document.execCommand("copy");
+        document.body.removeChild(ta);
+        toast("تم نسخ الرسالة بنجاح! الصقها في واتساب");
+      }
+    });
+  }
+
+  // Native share
+  const shareBtn = $("#waShareBtn");
+  if (shareBtn) {
+    shareBtn.addEventListener("click", async () => {
+      if (navigator.share) {
+        try {
+          await navigator.share({
+            title: "استبيان مركز شباب الأحمدية",
+            text: WA_MESSAGE,
+            url: CONFIG.SITE_URL,
+          });
+        } catch (e) {
+          // User cancelled or share failed — silent
+        }
+      } else {
+        toast("متصفحك لا يدعم المشاركة المباشرة. استخدم زر النسخ أو زر واتساب المباشر.");
+      }
+    });
+  }
+}
+
+function closeWaModal(modal) {
+  modal.hidden = true;
+  modal.setAttribute("aria-hidden", "true");
 }
 
 /* ============================================================
@@ -447,24 +611,9 @@ function initSoundToggle() {
 function renderTurnstile() {
   const box = $("#turnstileWidget");
   if (!box || !window.turnstile || CONFIG.TURNSTILE_SITE_KEY.startsWith("REPLACE")) return;
-  if (box.dataset.rendered === "1") return; // avoid "already been rendered" error on double init
+  if (box.dataset.rendered === "1") return;
   box.dataset.rendered = "1";
   window.turnstile.render(box, { sitekey: CONFIG.TURNSTILE_SITE_KEY });
-}
-
-/* ============================================================
-   WHATSAPP SHARE
-   ============================================================ */
-function initWhatsappShare() {
-  const btn = $("#shareWhatsapp");
-  if (!btn) return;
-  btn.addEventListener("click", () => {
-    const url = location.href.split("#")[0];
-    const message =
-      `📢 صوتك يهم! شارك رأيك في استبيان مستقبل مركز شباب الأحمدية — ` +
-      `دقيقة واحدة بس وتصويتك آمن وسري.\n\n${url}`;
-    window.open(`https://wa.me/?text=${encodeURIComponent(message)}`, "_blank", "noopener");
-  });
 }
 
 /* ============================================================
@@ -476,11 +625,12 @@ function initApp() {
   initMediaCapture();
   initInstallBanner();
   initSoundToggle();
-  initWhatsappShare();
+  initWhatsAppShare();
   registerServiceWorker();
   renderTurnstile();
 }
 
+// Unlock audio on ANY user gesture (not just during intro)
 document.addEventListener("pointerdown", unlockAudio, { once: true });
 document.addEventListener("keydown", unlockAudio, { once: true });
 document.addEventListener("DOMContentLoaded", runIntro);

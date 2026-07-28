@@ -1,110 +1,232 @@
-<!DOCTYPE html>
-<html lang="ar" dir="rtl">
-<head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<meta name="robots" content="noindex, nofollow">
-<title>لوحة تحكم إدارة الاستبيان</title>
-<link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;800&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
-<link rel="stylesheet" href="style.css">
-<style>
-  .admin-shell{max-width:1000px;margin:0 auto;padding:24px;}
-  .login-box{max-width:360px;margin:80px auto;text-align:center;}
-  .login-box input{width:100%;padding:14px;border-radius:12px;border:1px solid var(--glass-border);background:var(--glass);color:#fff;font-size:1.4rem;text-align:center;letter-spacing:6px;margin-bottom:14px;font-family:monospace;}
-  .admin-tabs{display:flex;gap:8px;margin-bottom:20px;flex-wrap:wrap;}
-  .admin-tabs button{background:var(--glass);border:1px solid var(--glass-border);color:var(--text-1);padding:10px 16px;border-radius:10px;cursor:pointer;font-family:inherit;}
-  .admin-tabs button.active{background:var(--emerald);color:#04140F;font-weight:800;}
-  table{width:100%;border-collapse:collapse;font-size:.85rem;}
-  th,td{padding:10px;border-bottom:1px solid var(--glass-border);text-align:right;}
-  .pill{padding:4px 10px;border-radius:50px;font-size:.72rem;font-weight:700;}
-  .pill-pending{background:rgba(232,184,84,.2);color:var(--gold);}
-  .pill-approved{background:rgba(22,199,154,.2);color:var(--emerald);}
-  .pill-rejected{background:rgba(255,84,112,.2);color:var(--danger);}
-  .row-actions button{margin-inline-start:6px;}
-  .clock{font-family:monospace;color:var(--text-1);font-size:.8rem;text-align:center;margin-top:8px;}
-  .admin-panel{display:none;}
-  .admin-panel.active{display:block;}
-</style>
-</head>
-<body>
+import { db, ref, onValue } from "./firebase-config.js";
 
-<div id="loginScreen" class="login-box">
-  <h2><i class="fa-solid fa-lock"></i> دخول الإدارة</h2>
-  <p class="section-sub">تسجيل دخول على مرحلتين: حساب الأدمن، ثم كلمة المرور المتغيّرة</p>
+const API_BASE = "https://markzshabab.studusa05.workers.de";
+const $ = (s, el = document) => el.querySelector(s);
+const $$ = (s, el = document) => [...el.querySelectorAll(s)];
 
-  <input type="email" id="adminEmailInput" placeholder="البريد الإلكتروني" autocomplete="username"
-    style="width:100%;padding:12px;border-radius:12px;border:1px solid var(--glass-border);background:var(--glass);color:#fff;margin-bottom:10px;font-family:inherit;text-align:center;">
-  <input type="password" id="adminFbPasswordInput" placeholder="كلمة مرور الحساب" autocomplete="current-password"
-    style="width:100%;padding:12px;border-radius:12px;border:1px solid var(--glass-border);background:var(--glass);color:#fff;margin-bottom:14px;font-family:inherit;text-align:center;">
+let adminToken = sessionStorage.getItem("admin_token") || null;
 
-  <p class="section-sub" style="margin-bottom:8px;">كلمة المرور المكوّنة من 4 أرقام (تتغيّر كل دقيقة حسب توقيت مصر)</p>
-  <input type="text" id="adminPasswordInput" inputmode="numeric" maxlength="4" placeholder="0000" autocomplete="off">
-  <button id="adminLoginBtn" class="btn-primary"><i class="fa-solid fa-right-to-bracket"></i> دخول</button>
-  <p id="loginError" style="color:var(--danger);"></p>
-</div>
+function toast(msg) {
+  const el = $("#toast");
+  el.textContent = msg;
+  el.classList.add("show");
+  setTimeout(() => el.classList.remove("show"), 3000);
+}
 
-<div id="adminApp" class="admin-shell" hidden>
-  <header class="topbar" style="border-radius:16px;margin-bottom:16px;">
-    <div class="brand"><i class="fa-solid fa-shield-halved"></i> لوحة تحكم استبيان الأحمدية</div>
-    <button id="logoutBtn" class="icon-btn"><i class="fa-solid fa-power-off"></i></button>
-  </header>
+/* ---------------- LOGIN ---------------- */
+$("#adminLoginBtn").addEventListener("click", async () => {
+  const password = $("#adminPasswordInput").value.trim();
+  try {
+    const res = await fetch(`${API_BASE}/api/admin/login`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ password }),
+    });
+    const data = await res.json();
+    if (data.success) {
+      adminToken = data.token;
+      sessionStorage.setItem("admin_token", adminToken);
+      showAdminApp();
+    } else {
+      $("#loginError").textContent = data.message || "كلمة مرور غير صحيحة";
+    }
+  } catch (e) {
+    $("#loginError").textContent = "تعذّر الاتصال بالخادم";
+  }
+});
 
-  <div class="admin-tabs">
-    <button data-panel="moderation" class="active"><i class="fa-solid fa-clapperboard"></i> مراجعة المشاركات</button>
-    <button data-panel="votes"><i class="fa-solid fa-square-poll-vertical"></i> الأصوات</button>
-    <button data-panel="bans"><i class="fa-solid fa-ban"></i> الحظر</button>
-    <button data-panel="exports"><i class="fa-solid fa-file-export"></i> تصدير البيانات</button>
-    <button data-panel="system"><i class="fa-solid fa-server"></i> حالة النظام</button>
-  </div>
+$("#logoutBtn")?.addEventListener("click", () => {
+  sessionStorage.removeItem("admin_token");
+  location.reload();
+});
 
-  <section id="panel-moderation" class="admin-panel active">
-    <h3>قائمة المراجعة (فيديو / فويس نوت)</h3>
-    <table>
-      <thead><tr><th>النوع</th><th>الحالة</th><th>التاريخ</th><th>معاينة</th><th>إجراءات</th></tr></thead>
-      <tbody id="moderationTableBody"></tbody>
-    </table>
-  </section>
+function showAdminApp() {
+  $("#loginScreen").hidden = true;
+  $("#adminApp").hidden = false;
+  initTabs();
+  loadModerationQueue();
+  loadVotes();
+  loadBans();
+  loadSystemHealth();
+  wireExports();
+  wireBan();
+}
 
-  <section id="panel-votes" class="admin-panel">
-    <h3>سجل الأصوات (آخر 4 أرقام من IP فقط)</h3>
-    <input type="text" id="voteSearch" placeholder="بحث برقم IP الأخير..." style="padding:10px;border-radius:8px;margin-bottom:12px;width:100%;background:var(--glass);border:1px solid var(--glass-border);color:#fff;">
-    <table>
-      <thead><tr><th>س1</th><th>س2</th><th>س3</th><th>IP (آخر 4)</th><th>التاريخ</th><th>إجراء</th></tr></thead>
-      <tbody id="votesTableBody"></tbody>
-    </table>
-  </section>
+if (adminToken) showAdminApp();
 
-  <section id="panel-bans" class="admin-panel">
-    <h3>حظر / إلغاء حظر IP</h3>
-    <p class="section-sub">الحظر يتم عن طريق تجزيء IP (ipHash) الذي يظهر في سجل الأصوات أو المشاركات المرفوضة</p>
-    <div style="display:flex;gap:10px;margin-bottom:16px;">
-      <input type="text" id="banIpHashInput" placeholder="ipHash المطلوب حظره" style="flex:1;padding:10px;border-radius:8px;background:var(--glass);border:1px solid var(--glass-border);color:#fff;">
-      <button id="banBtn" class="btn-primary" style="width:auto;">حظر</button>
-    </div>
-    <table>
-      <thead><tr><th>ipHash</th><th>السبب</th><th>التاريخ</th><th>إجراء</th></tr></thead>
-      <tbody id="bansTableBody"></tbody>
-    </table>
-  </section>
+/* ---------------- TABS ---------------- */
+function initTabs() {
+  $$(".admin-tabs button").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      $$(".admin-tabs button").forEach((b) => b.classList.remove("active"));
+      $$(".admin-panel").forEach((p) => p.classList.remove("active"));
+      btn.classList.add("active");
+      $(`#panel-${btn.dataset.panel}`).classList.add("active");
+    });
+  });
+}
 
-  <section id="panel-exports" class="admin-panel">
-    <h3>تصدير البيانات</h3>
-    <div style="display:flex;gap:12px;flex-wrap:wrap;">
-      <button id="exportVotesCsv" class="btn-ghost"><i class="fa-solid fa-file-csv"></i> تصدير الأصوات CSV</button>
-      <button id="exportVotesJson" class="btn-ghost"><i class="fa-solid fa-file-code"></i> تصدير الأصوات JSON</button>
-      <button id="exportMediaJson" class="btn-ghost"><i class="fa-solid fa-file-code"></i> تصدير المشاركات JSON</button>
-    </div>
-  </section>
+function authHeaders() {
+  return { Authorization: `Bearer ${adminToken}`, "Content-Type": "application/json" };
+}
 
-  <section id="panel-system" class="admin-panel">
-    <h3>حالة النظام</h3>
-    <div id="systemHealth" class="counters-grid"></div>
-  </section>
-</div>
+/* ---------------- MODERATION ---------------- */
+function loadModerationQueue() {
+  onValue(ref(db, "media"), (snap) => {
+    const data = snap.val() || {};
+    const tbody = $("#moderationTableBody");
+    tbody.innerHTML = "";
+    Object.entries(data)
+      .sort((a, b) => b[1].ts - a[1].ts)
+      .forEach(([id, m]) => {
+        const tr = document.createElement("tr");
+        tr.innerHTML = `
+          <td>${m.type === "video" ? "فيديو" : "فويس نوت"}</td>
+          <td><span class="pill pill-${m.status}">${statusLabel(m.status)}</span></td>
+          <td>${new Date(m.ts).toLocaleString("ar-EG")}</td>
+          <td>${m.r2Key ? `<code>${m.r2Key}</code>` : "-"}</td>
+          <td class="row-actions">
+            <button class="btn-ghost" data-action="approve" data-id="${id}" data-key="${m.r2Key}">اعتماد</button>
+            <button class="btn-ghost" data-action="reject" data-id="${id}" data-key="${m.r2Key}">رفض</button>
+            <button class="btn-ghost" data-action="delete" data-id="${id}" data-key="${m.r2Key}">حذف</button>
+          </td>`;
+        tbody.appendChild(tr);
+      });
 
-<div id="toast" class="toast" role="status"></div>
+    tbody.querySelectorAll("button").forEach((btn) => {
+      btn.addEventListener("click", () => moderationAction(btn.dataset.action, btn.dataset.id, btn.dataset.key));
+    });
+  });
+}
 
-<script type="module" src="admin.js"></script>
-</body>
-</html>
+function statusLabel(s) {
+  return { pending: "قيد المراجعة", approved: "معتمد", rejected: "مرفوض" }[s] || s;
+}
+
+async function moderationAction(action, mediaId, r2Key) {
+  const res = await fetch(`${API_BASE}/api/admin/media/${action}`, {
+    method: "POST",
+    headers: authHeaders(),
+    body: JSON.stringify({ mediaId, r2Key }),
+  });
+  const data = await res.json();
+  toast(data.message || (data.success ? "تم التنفيذ" : "فشل التنفيذ"));
+}
+
+/* ---------------- VOTES ---------------- */
+function loadVotes() {
+  onValue(ref(db, "votes"), (snap) => {
+    const data = snap.val() || {};
+    renderVotes(data);
+    $("#voteSearch").oninput = (e) => {
+      const q = e.target.value.trim();
+      const filtered = Object.fromEntries(Object.entries(data).filter(([, v]) => v.ipLast4.includes(q)));
+      renderVotes(filtered);
+    };
+  });
+}
+
+function renderVotes(data) {
+  const tbody = $("#votesTableBody");
+  tbody.innerHTML = "";
+  Object.entries(data)
+    .sort((a, b) => b[1].ts - a[1].ts)
+    .slice(0, 300)
+    .forEach(([id, v]) => {
+      const tr = document.createElement("tr");
+      tr.innerHTML = `
+        <td>${q1Label(v.q1)}</td><td>${q2Label(v.q2)}</td><td>${q3Label(v.q3)}</td>
+        <td>**.**.**.${v.ipLast4}</td>
+        <td>${new Date(v.ts).toLocaleString("ar-EG")}</td>
+        <td><button class="btn-ghost" data-vote-del="${id}">حذف (تزوير مؤكد)</button></td>`;
+      tbody.appendChild(tr);
+    });
+  tbody.querySelectorAll("[data-vote-del]").forEach((btn) => {
+    btn.addEventListener("click", async () => {
+      if (!confirm("حذف هذا الصوت نهائيًا؟ يُستخدم فقط في حالة تصويت مزوّر مؤكد.")) return;
+      const res = await fetch(`${API_BASE}/api/admin/vote/delete`, {
+        method: "POST", headers: authHeaders(), body: JSON.stringify({ voteId: btn.dataset.voteDel }),
+      });
+      const data = await res.json();
+      toast(data.message || "تم الحذف");
+    });
+  });
+}
+const q1Label = (v) => ({ satisfied: "راضٍ جدًا", not_satisfied: "غير راضٍ" }[v] || v);
+const q2Label = (v) => ({ youth: "قيادة شبابية", current: "الإدارة الحالية" }[v] || v);
+const q3Label = (v) => ({ new_youth: "الشباب الجديد", current_mgmt: "الإدارة الحالية" }[v] || v);
+
+/* ---------------- BANS ---------------- */
+function loadBans() {
+  onValue(ref(db, "banned_ips"), (snap) => {
+    const data = snap.val() || {};
+    const tbody = $("#bansTableBody");
+    tbody.innerHTML = "";
+    Object.entries(data).forEach(([hash, b]) => {
+      const tr = document.createElement("tr");
+      tr.innerHTML = `<td><code>${hash.slice(0, 12)}...</code></td><td>${b.reason || "-"}</td><td>${new Date(b.ts).toLocaleString("ar-EG")}</td>
+        <td><button class="btn-ghost" data-unban="${hash}">إلغاء الحظر</button></td>`;
+      tbody.appendChild(tr);
+    });
+    tbody.querySelectorAll("[data-unban]").forEach((btn) => {
+      btn.addEventListener("click", async () => {
+        const res = await fetch(`${API_BASE}/api/admin/unban`, {
+          method: "POST", headers: authHeaders(), body: JSON.stringify({ ipHash: btn.dataset.unban }),
+        });
+        toast((await res.json()).message || "تم إلغاء الحظر");
+      });
+    });
+  });
+}
+
+function wireBan() {
+  $("#banBtn").addEventListener("click", async () => {
+    const ipHash = $("#banIpHashInput").value.trim();
+    if (!ipHash) return;
+    const res = await fetch(`${API_BASE}/api/admin/ban`, {
+      method: "POST", headers: authHeaders(), body: JSON.stringify({ ipHash, reason: "حظر يدوي من الإدارة" }),
+    });
+    toast((await res.json()).message || "تم الحظر");
+    $("#banIpHashInput").value = "";
+  });
+}
+
+/* ---------------- EXPORTS ---------------- */
+function wireExports() {
+  $("#exportVotesCsv").addEventListener("click", () => exportData("votes", "csv"));
+  $("#exportVotesJson").addEventListener("click", () => exportData("votes", "json"));
+  $("#exportMediaJson").addEventListener("click", () => exportData("media", "json"));
+}
+
+async function exportData(node, format) {
+  onValue(ref(db, node), (snap) => {
+    const data = snap.val() || {};
+    const rows = Object.entries(data).map(([id, v]) => ({ id, ...v }));
+    let blob, filename;
+    if (format === "json") {
+      blob = new Blob([JSON.stringify(rows, null, 2)], { type: "application/json" });
+      filename = `${node}.json`;
+    } else {
+      const headers = Object.keys(rows[0] || {});
+      const csv = [headers.join(","), ...rows.map((r) => headers.map((h) => JSON.stringify(r[h] ?? "")).join(","))].join("\n");
+      blob = new Blob([csv], { type: "text/csv" });
+      filename = `${node}.csv`;
+    }
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(blob);
+    a.download = filename;
+    a.click();
+  }, { onlyOnce: true });
+}
+
+/* ---------------- SYSTEM HEALTH ---------------- */
+function loadSystemHealth() {
+  onValue(ref(db, "statistics/summary"), (snap) => {
+    const s = snap.val() || {};
+    $("#systemHealth").innerHTML = `
+      <div class="counter-card"><span class="counter-num">${s.total || 0}</span><span class="counter-label">إجمالي الأصوات</span></div>
+      <div class="counter-card"><span class="counter-num">${s.mediaSubmitted || 0}</span><span class="counter-label">مشاركات مُرسلة</span></div>
+      <div class="counter-card"><span class="counter-num">${s.mediaApproved || 0}</span><span class="counter-label">معتمدة</span></div>
+      <div class="counter-card"><span class="counter-num">${s.mediaRejected || 0}</span><span class="counter-label">مرفوضة</span></div>`;
+  });
+}
