@@ -467,7 +467,6 @@ function createMediaCard(item, index) {
                     <div class="meta-right">
                         <span><i class="fas fa-calendar-alt"></i> ${date}</span>
                         <span class="meta-badge"><i class="fas fa-eye"></i> ${item.views || 0}</span>
-                        <span class="meta-badge">${item.author}</span>
                     </div>
                 </div>
             </div>
@@ -513,7 +512,6 @@ function createMediaCard(item, index) {
                     <div class="meta-right">
                         <span><i class="fas fa-calendar-alt"></i> ${date}</span>
                         <span class="meta-badge"><i class="fas fa-eye"></i> ${item.views || 0}</span>
-                        <span class="meta-badge">${item.author}</span>
                     </div>
                 </div>
             </div>
@@ -788,7 +786,6 @@ function openLightbox(item) {
             <div class="lightbox-meta">
                 <span><i class="fas fa-calendar-alt"></i> ${formatDate(item.timestamp)}</span>
                 <span><i class="fas fa-eye"></i> ${item.views || 0} مشاهدة</span>
-                <span><i class="fas fa-user"></i> ${item.author}</span>
             </div>
         `;
     }

@@ -1,15 +1,31 @@
 /**
  * لوحة تحكم الإدارة - El Ahmadiya Survey Admin
- * ✅ يدعم الآن: مشاهدة الفيديوهات + الاستماع للصوتيات!
+ * ✅ يدعم الآن: Firebase Direct + Worker Fallback
+ * ✅ جلب البيانات والميديا بشكل موثوق
  */
 
-const WORKER_URL = 'https://markzshabab.studusa05.workers.dev';
+const CONFIG = {
+    // Firebase Configuration
+    FIREBASE_CONFIG: {
+        apiKey: "AIzaSyAB6GT-198Ns1W8a722ACFeouK6RvUDuwc",
+        authDomain: "markzshabab-4c01b.firebaseapp.com",
+        databaseURL: "https://markzshabab-4c01b-default-rtdb.firebaseio.com",
+        projectId: "markzshabab-4c01b",
+    },
+    
+    // R2 Storage
+    R2_BASE_URL: 'https://pub-3fb0b86037554ed0b842bc258e8a3051.r2.dev',
+    
+    // Worker API (Fallback)
+    WORKER_URL: 'https://markzshabab.studusa05.workers.dev',
+};
 
 const admin = {
     token: sessionStorage.getItem('admin_token') || null,
     allData: [],
     filteredData: [],
     currentFilter: 'all',
+    db: null,
 
     // ==================== تسجيل الدخول ====================
     
@@ -21,7 +37,7 @@ const admin = {
         sessionStorage.setItem('admin_token', this.token);
         
         this.showToast('جاري التحميل...');
-        this.fetchData();
+        this.initializeFirebase();
     },
 
     logout() {
@@ -32,23 +48,110 @@ const admin = {
         document.getElementById('dashboard-screen').style.display = 'none';
     },
 
-    // ==================== جلب البيانات ====================
+    // ==================== تهيئة Firebase ====================
     
-    async fetchData() {
+    async initializeFirebase() {
         try {
             const tbody = document.getElementById('table-body');
             tbody.innerHTML = `
                 <tr>
                     <td colspan="10" class="loading-spinner">
                         <i class="fas fa-spinner fa-spin fa-2x"></i>
-                        <p style="margin-top: 15px; color: #f4c430;">جاري تحميل التصويتات والمحتوى...</p>
+                        <p style="margin-top: 15px; color: #f4c430;">جاري الاتصال بقاعدة البيانات...</p>
                     </td>
                 </tr>
             `;
 
-            console.log('Fetching from:', `${WORKER_URL}/admin/submissions`);
+            // تحميل Firebase ديناميكياً
+            const { initializeApp } = await import('https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js');
+            const { getDatabase, ref, onValue, get, set, update, remove } = await import('https://www.gstatic.com/firebasejs/10.8.0/firebase-database.js');
+
+            // تهيئة Firebase
+            const app = initializeApp(CONFIG.FIREBASE_CONFIG);
+            this.db = getDatabase(app);
             
-            const res = await fetch(`${WORKER_URL}/admin/submissions`, {
+            console.log('✅ Firebase initialized successfully');
+            
+            // جلب البيانات
+            await this.fetchFromFirebase();
+            
+        } catch (error) {
+            console.error('❌ Firebase initialization error:', error);
+            this.showToast('خطأ في الاتصال بـ Firebase، جرب Worker...', 'error');
+            // Fallback to Worker
+            await this.fetchFromWorker();
+        }
+    },
+
+    // ==================== جلب البيانات من Firebase (المصدر الرئيسي) ====================
+    
+    async fetchFromFirebase() {
+        try {
+            if (!this.db) throw new Error('Firebase not initialized');
+            
+            const { ref, get } = await import('https://www.gstatic.com/firebasejs/10.8.0/firebase-database.js');
+            
+            const submissionsRef = ref(this.db, 'survey/submissions');
+            const snapshot = await get(submissionsRef);
+            
+            const data = snapshot.val();
+            let submissionsArray = [];
+            
+            if (data) {
+                Object.keys(data).forEach(key => {
+                    const submission = data[key];
+                    submissionsArray.push({
+                        id: key,
+                        ...submission,
+                        // تأكد من وجود mediaUrl من R2
+                        mediaUrl: submission.mediaUrl || 
+                                  (submission.mediaId ? `${CONFIG.R2_BASE_URL}/media/${submission.mediaId}` : null)
+                    });
+                });
+                
+                console.log(`✅ Firebase: تم جلب ${submissionsArray.length} تسجيل`);
+            }
+            
+            this.allData = submissionsArray.map((item, index) => ({
+                ...item,
+                index: index + 1
+            }));
+
+            // Show dashboard
+            document.getElementById('login-screen').style.display = 'none';
+            document.getElementById('dashboard-screen').style.display = 'block';
+
+            // Update UI
+            this.updateStats();
+            this.applyFilter();
+            this.updateFilterCounts();
+
+            const mediaCount = this.allData.filter(s => s.mediaUrl || s.mediaType).length;
+            this.showToast(`تم تحميل ${this.allData.length} تصويت (${mediaCount} بمحتوى)`);
+
+        } catch (error) {
+            console.error('❌ Firebase fetch error:', error);
+            throw error; // سيتم التقاطه واستدعاء Worker كـ fallback
+        }
+    },
+
+    // ==================== جلب البيانات من Worker (Fallback) ====================
+    
+    async fetchFromWorker() {
+        try {
+            const tbody = document.getElementById('table-body');
+            tbody.innerHTML = `
+                <tr>
+                    <td colspan="10" class="loading-spinner">
+                        <i class="fas fa-spinner fa-spin fa-2x"></i>
+                        <p style="margin-top: 15px; color: #f4c430;">جاري التحميل من الخادم الاحتياطي...</p>
+                    </td>
+                </tr>
+            `;
+            
+            console.log('Fetching from:', `${CONFIG.WORKER_URL}/admin/submissions`);
+            
+            const res = await fetch(`${CONFIG.WORKER_URL}/admin/submissions`, {
                 headers: { 
                     'Authorization': `Bearer ${this.token}`,
                     'Content-Type': 'application/json'
@@ -70,6 +173,13 @@ const admin = {
             // Handle response format
             let submissionsArray = Array.isArray(data) ? data : Object.values(data);
             
+            // Add R2 URLs to media items
+            submissionsArray = submissionsArray.map(item => ({
+                ...item,
+                mediaUrl: item.mediaUrl || 
+                          (item.mediaId ? `${CONFIG.R2_BASE_URL}/media/${item.mediaId}` : null)
+            }));
+            
             this.allData = submissionsArray.map((item, index) => ({
                 ...item,
                 index: index + 1
@@ -88,22 +198,42 @@ const admin = {
             this.showToast(`تم تحميل ${this.allData.length} تصويت (${mediaCount} بمحتوى)`);
 
         } catch (error) {
-            console.error('Fetch error:', error);
-            this.showToast('خطأ في التحميل: ' + error.message, 'error');
-            
-            const tbody = document.getElementById('table-body');
-            tbody.innerHTML = `
-                <tr>
-                    <td colspan="10" class="empty-state">
-                        <i class="fas fa-exclamation-triangle fa-3x" style="color: #ef4444;"></i>
-                        <p style="margin-top: 15px;">فشل تحميل البيانات</p>
-                        <button onclick="admin.fetchData()" class="btn-primary" style="margin-top: 20px;">
-                            <i class="fas fa-redo"></i> إعادة المحاولة
-                        </button>
-                    </td>
-                </tr>
-            `;
+            console.error('❌ Worker fetch error:', error);
+            this.showErrorState(error.message);
         }
+    },
+    
+    // ==================== Main Fetch Data (tries both sources) ====================
+    
+    async fetchData() {
+        try {
+            // Try Firebase first
+            await this.initializeFirebase();
+        } catch (firebaseError) {
+            console.warn('⚠️ Firebase failed, trying Worker:', firebaseError.message);
+            try {
+                // Fallback to Worker
+                await this.fetchFromWorker();
+            } catch (workerError) {
+                console.error('❌ Both sources failed:', workerError);
+                this.showErrorState('فشل تحميل البيانات من جميع المصادر');
+            }
+        }
+    },
+
+    showErrorState(message) {
+        const tbody = document.getElementById('table-body');
+        tbody.innerHTML = `
+            <tr>
+                <td colspan="10" class="empty-state">
+                    <i class="fas fa-exclamation-triangle fa-3x" style="color: #ef4444;"></i>
+                    <p style="margin-top: 15px;">${message || 'فشل تحميل البيانات'}</p>
+                    <button onclick="admin.fetchData()" class="btn-primary" style="margin-top: 20px;">
+                        <i class="fas fa-redo"></i> إعادة المحاولة
+                    </button>
+                </td>
+            </tr>
+        `;
     },
 
     // ==================== الإحصائيات ====================
@@ -111,8 +241,8 @@ const admin = {
     updateStats() {
         const total = this.allData.length;
         const pending = this.allData.filter(s => s.status === 'pending').length;
-        const approved = this.allData.filter(s => s.status === 'approved').length;
-        const withMedia = this.allData.filter(s => s.mediaUrl).length;
+        const approved = this.allData.filter(s => s.status === 'approved' || s.status === 'accepted').length;
+        const withMedia = this.allData.filter(s => s.mediaUrl || s.mediaType).length;
 
         document.getElementById('total-votes').textContent = total;
         document.getElementById('pending-count').textContent = pending;
@@ -124,8 +254,8 @@ const admin = {
         const counts = {
             all: this.allData.length,
             pending: this.allData.filter(s => s.status === 'pending').length,
-            approved: this.allData.filter(s => s.status === 'approved').length,
-            rejected: this.allData.filter(s => s.status === 'rejected').length,
+            approved: this.allData.filter(s => s.status === 'approved' || s.status === 'accepted').length,
+            rejected: this.allData.filter(s => s.status === 'rejected' || s.status === 'rejected').length,
             'has-media': this.allData.filter(s => s.mediaUrl || s.mediaType).length
         };
 
@@ -157,10 +287,10 @@ const admin = {
                 filtered = filtered.filter(s => s.status === 'pending');
                 break;
             case 'approved':
-                filtered = filtered.filter(s => s.status === 'approved');
+                filtered = filtered.filter(s => s.status === 'approved' || s.status === 'accepted');
                 break;
             case 'rejected':
-                filtered = filtered.filter(s => s.status === 'rejected');
+                filtered = filtered.filter(s => s.status === 'rejected' || s.status === 'rejected');
                 break;
             case 'has-media':
                 filtered = filtered.filter(s => s.mediaUrl || s.mediaType);
@@ -200,12 +330,13 @@ const admin = {
             return;
         }
 
-        data.sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0));
+        data.sort((a, b) => (b.timestamp || b.timestampISO || 0) - (a.timestamp || a.timestampISO || 0));
         tbody.innerHTML = '';
 
         data.forEach((item, idx) => {
             const date = item.timestampISO ? 
-                new Date(item.timestampISO).toLocaleString('ar-EG') : '-';
+                new Date(item.timestampISO).toLocaleString('ar-EG') : 
+                item.timestamp ? new Date(item.timestamp).toLocaleString('ar-EG') : '-';
 
             const ipDisplay = item.ip || item.clientIP || 'غير معروف';
             const ipHash = item.ipHash ? item.ipHash.substring(0, 12) + '...' : '-';
@@ -214,7 +345,7 @@ const admin = {
             const q2Badge = this.getVoteBadge(item.votes?.q2);
             const q3Badge = this.getVoteBadge(item.votes?.q3);
 
-            // 🎬🎤 الميديا - تعمل الآن!
+            // 🎬🎤 الميديا - يعمل من Firebase و R2!
             const mediaHtml = this.renderPlayableMedia(item);
 
             const statusHtml = this.getStatusBadge(item.status);
@@ -241,38 +372,48 @@ const admin = {
     getVoteBadge(value) {
         if (!value) return '<span style="color:#666">-</span>';
         
-        const isPositive = ['satisfied', 'yes', 'youth'].includes(value);
+        const isPositive = ['satisfied', 'yes', 'youth', 'Very Satisfied', 'Yes', 'New Youth'].includes(value);
         const labels = {
             satisfied: '✅ راضي',
             not_satisfied: '❌ غير راضي',
             yes: '✅ أؤيد',
             no: '❌ لا أؤيد',
             youth: '🆕 شباب جديد',
-            current: '🏛️ الحالية'
+            current: '🏛️ الحالية',
+            'Very Satisfied': '✅ راضي جداً',
+            'Not Satisfied': '❌ غير راضي',
+            'Yes': '✅ نعم',
+            'No': '❌ لا',
+            'New Youth': '🆕 شباب جدد',
+            'Current Management': '🏛️ الإدارة الحالية'
         };
         
         return `<span class="vote-badge ${isPositive ? 'positive' : 'negative'}">${labels[value] || value}</span>`;
     },
 
-    // 🎬🎤 هذا هو الجزء المهم - تشغيل الميديا الفعلي!
+    // 🎬🎤 تشغيل الميديا الفعلي من R2!
     renderPlayableMedia(item) {
-        if (!item.mediaUrl && !item.mediaType) {
+        if (!item.mediaUrl && !item.mediaType && !item.mediaId) {
             return '<span class="no-media" style="color:#555;font-style:italic;">-</span>';
         }
 
-        const mediaId = item.id;
-        const mediaType = item.mediaType;
-        const mediaSize = item.mediaSize ? (item.mediaSize / 1024).toFixed(1) + 'KB' : '';
+        // رابط الميديا - من R2 مباشرة!
+        const mediaSrc = item.mediaUrl || 
+                         (item.mediaId ? `${CONFIG.R2_BASE_URL}/media/${item.mediaId}` : null);
         
-        // رابط الميديا الفعلي - يعمل الآن!
-        const mediaSrc = `${WORKER_URL}/api/media/${mediaId}`;
+        if (!mediaSrc) {
+            return '<span class="no-media" style="color:#555;font-style:italic;">-</span>';
+        }
 
+        const mediaType = item.mediaType || 
+                          (mediaSrc.includes('.mp4') || mediaSrc.includes('.webm') ? 'video' : 'audio');
+        
         const typeIcon = mediaType === 'video' ? 'fa-video' : 'fa-microphone';
         const typeName = mediaType === 'video' ? 'فيديو' : 'صوتي';
         const typeColor = mediaType === 'video' ? '#8b5cf6' : '#06b6d4';
 
         return `
-            <div class="media-container" onclick='admin.openMediaModal("${mediaId}", "${mediaType}")'>
+            <div class="media-container" onclick='admin.openMediaModal("${item.id || item.mediaId}", "${mediaType}")'>
                 ${mediaType === 'video' ? `
                     <!-- مشغل فيديو مصغر -->
                     <div class="video-thumbnail">
@@ -300,7 +441,6 @@ const admin = {
                 <div class="media-info">
                     <i class="fas ${typeIcon}" style="color:${typeColor}"></i>
                     <span>${typeName}</span>
-                    ${mediaSize ? `<small>(${mediaSize})</small>` : ''}
                 </div>
             </div>
 
@@ -324,6 +464,7 @@ const admin = {
         const config = {
             pending: { label: '⏳ قيد المراجعة', class: 'status-pending' },
             approved: { label: '✅ مقبول', class: 'status-approved' },
+            accepted: { label: '✅ مقبول', class: 'status-approved' },
             rejected: { label: '❌ مرفوض', class: 'status-rejected' }
         };
         
@@ -338,7 +479,7 @@ const admin = {
         let buttons = '';
         
         // أزرار القبول/رفض للمحتوى قيد المراجعة
-        if (item.status === 'pending' && item.mediaUrl) {
+        if ((item.status === 'pending') && (item.mediaUrl || item.mediaType)) {
             buttons += `
                 <button class="action-btn approve" onclick='event.stopPropagation(); admin.updateStatus(${id}, "accepted")' title="✅ قبول ونشر">
                     <i class="fas fa-check"></i> قبول
@@ -347,8 +488,7 @@ const admin = {
                     <i class="fas fa-times"></i> رفض
                 </button>
             `;
-        } else if (item.mediaUrl) {
-            // تغيير حالة إذا كان مقبولاً أو مرفوضاً
+        } else if (item.mediaUrl || item.mediaType) {
             buttons += `
                 <button class="action-btn approve" onclick='event.stopPropagation(); admin.updateStatus(${id}, "approved")' title="تغيير الحالة">
                     <i class="fas fa-edit"></i>
@@ -378,15 +518,17 @@ const admin = {
     // ==================== Modal كبير لتشغيل الميديو ====================
     
     openMediaModal(submissionId, mediaType) {
-        const item = this.allData.find(s => s.id === submissionId);
+        const item = this.allData.find(s => s.id === submissionId || s.mediaId === submissionId);
         if (!item) return;
 
         const modal = document.getElementById('media-modal');
         const container = document.getElementById('modal-media-container');
         const info = document.getElementById('modal-info');
 
-        // رابط الميديو الفعلي - يعمل 100%!
-        const mediaSrc = `${WORKER_URL}/api/media/${submissionId}`;
+        // رابط الميديا من R2 - يعمل 100%!
+        const mediaSrc = item.mediaUrl || 
+                         (item.mediaId ? `${CONFIG.R2_BASE_URL}/media/${item.mediaId}` : 
+                          `${CONFIG.WORKER_URL}/api/media/${submissionId}`);
         
         const isVideo = mediaType === 'video';
         const typeLabel = isVideo ? 'فيديو' : 'تسجيل صوتي';
@@ -415,7 +557,7 @@ const admin = {
                        autoplay
                        style="width:100%;height:50px;"
                        onerror="handleMediaError(this, '${typeLabel}')">
-                    متصفكك لا يدعم تشغيل الصوت
+                    متصفحك لا يدعم تشغيل الصوت
                 </audio>
             </div>
         `;
@@ -428,7 +570,7 @@ const admin = {
                 </div>
                 <div style="background:rgba(255,255,255,0.05);padding:10px 20px;border-radius:10px;">
                     <i class="fas fa-calendar" style="color:#f4c430"></i>
-                    <strong> التاريخ:</strong> ${new Date(item.timestampISO).toLocaleString('ar-EG')}
+                    <strong> التاريخ:</strong> ${new Date(item.timestampISO || item.timestamp).toLocaleString('ar-EG')}
                 </div>
                 <div style="background:rgba(255,255,255,0.05);padding:10px 20px;border-radius:10px;">
                     <i class="fas fa-network-wired" style="color:#60a5fa"></i>
@@ -436,13 +578,13 @@ const admin = {
                 </div>
                 <div style="background:rgba(255,255,255,0.05);padding:10px 20px;border-radius:10px;">
                     <i class="fas fa-id-card" style="color:#a78bfa"></i>
-                    <strong> ID:</strong> ${submissionId.substring(0, 8)}...
+                    <strong> ID:</strong> ${(submissionId || '').substring(0, 12)}...
                 </div>
             </div>
             
             <div style="margin-top:20px;text-align:center;">
-                <span class="status-badge ${item.status === 'pending' ? 'status-pending' : item.status === 'approved' ? 'status-approved' : 'status-rejected'}">
-                    الحالة: ${item.status === 'pending' ? '⏳ قيد المراجعة' : item.status === 'approved' ? '✅ مقبول' : '❌ مرفوض'}
+                <span class="status-badge ${item.status === 'pending' ? 'status-pending' : (item.status === 'approved' || item.status === 'accepted') ? 'status-approved' : 'status-rejected'}">
+                    الحالة: ${item.status === 'pending' ? '⏳ قيد المراجعة' : (item.status === 'approved' || item.status === 'accepted') ? '✅ مقبول' : '❌ مرفوض'}
                 </span>
             </div>
             
@@ -463,7 +605,7 @@ const admin = {
         modal.classList.add('active');
     },
 
-    // ==================== إجراءات الأدمن ====================
+    // ==================== إجراءات الأدمن (Firebase + Worker) ====================
     
     async updateStatus(id, newStatus) {
         const statusText = newStatus === 'accepted' || newStatus === 'approved' ? 'قبول ونشر' : 'رفض';
@@ -473,7 +615,26 @@ const admin = {
         try {
             this.showToast(`جاري ${statusText}...`);
             
-            const res = await fetch(`${WORKER_URL}/admin/update-status`, {
+            // Try Firebase first
+            if (this.db) {
+                try {
+                    const { ref, update } = await import('https://www.gstatic.com/firebasejs/10.8.0/firebase-database.js');
+                    const submissionRef = ref(this.db, `survey/submissions/${id}`);
+                    await update(submissionRef, { 
+                        status: newStatus === 'accepted' ? 'approved' : newStatus,
+                        updatedAt: new Date().toISOString()
+                    });
+                    
+                    this.showToast(`✅ تم ${statusText} بنجاح! (Firebase)`);
+                    setTimeout(() => this.fetchData(), 500);
+                    return;
+                } catch (firebaseError) {
+                    console.warn('⚠️ Firebase update failed, trying Worker:', firebaseError);
+                }
+            }
+            
+            // Fallback to Worker
+            const res = await fetch(`${CONFIG.WORKER_URL}/admin/update-status`, {
                 method: 'POST',
                 headers: {
                     'Authorization': `Bearer ${this.token}`,
@@ -485,7 +646,7 @@ const admin = {
             const result = await res.json();
 
             if (result.success) {
-                this.showToast(`✅ تم ${statusText} بنجاح!`);
+                this.showToast(`✅ تم ${statusText} بنجاح! (Worker)`);
                 setTimeout(() => this.fetchData(), 500);
             } else {
                 this.showToast(result.error || 'فشل العملية', 'error');
@@ -500,8 +661,24 @@ const admin = {
 
         try {
             this.showToast('جاري الحذف...');
-
-            const res = await fetch(`${WORKER_URL}/admin/delete`, {
+            
+            // Try Firebase first
+            if (this.db) {
+                try {
+                    const { ref, remove } = await import('https://www.gstatic.com/firebasejs/10.8.0/firebase-database.js');
+                    const submissionRef = ref(this.db, `survey/submissions/${id}`);
+                    await remove(submissionRef);
+                    
+                    this.showToast('🗑️ تم الحذف بنجاح! (Firebase)');
+                    setTimeout(() => this.fetchData(), 500);
+                    return;
+                } catch (firebaseError) {
+                    console.warn('⚠️ Firebase delete failed, trying Worker:', firebaseError);
+                }
+            }
+            
+            // Fallback to Worker
+            const res = await fetch(`${CONFIG.WORKER_URL}/admin/delete`, {
                 method: 'POST',
                 headers: {
                     'Authorization': `Bearer ${this.token}`,
@@ -529,7 +706,7 @@ const admin = {
         try {
             this.showToast('جاري الحظر...');
 
-            const res = await fetch(`${WORKER_URL}/admin/block-ip`, {
+            const res = await fetch(`${CONFIG.WORKER_URL}/admin/block-ip`, {
                 method: 'POST',
                 headers: {
                     'Authorization': `Bearer ${this.token}`,
