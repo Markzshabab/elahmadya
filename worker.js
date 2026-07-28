@@ -1,8 +1,9 @@
-// ==================== CLOUDFLARE WORKER - COMPLETE VERSION ====================
-// يدعم: التصويتات + الإحصائيات + لوحة الأدمن
+// ==================== CLOUDFLARE WORKER - WITH MEDIA SUPPORT ====================
+// يدعم: التصويتات + حفظ الميديا + لوحة الأدمن الكاملة
 
 // تخزين البيانات
 let submissions = [];
+let mediaStore = {}; // لتخزين الميديا الفعلية
 let blockedIPs = new Set();
 let stats = {
     q1_satisfied: 0, q1_not: 0,
@@ -33,24 +34,27 @@ export default {
 
             // ==================== PUBLIC ENDPOINTS ====================
             
-            // Health Check
             if (url.pathname === '/api/health' && method === 'GET') {
                 return jsonResponse({ status: 'ok', time: new Date().toISOString(), totalSubmissions: submissions.length }, 200, corsHeaders);
             }
 
-            // Stats
             if (url.pathname === '/api/stats' && method === 'GET') {
                 return jsonResponse(stats, 200, corsHeaders);
             }
 
-            // Submit Vote
+            // Submit Vote WITH MEDIA
             if (url.pathname === '/api/vote' && method === 'POST') {
-                return await handleVote(request, corsHeaders);
+                return await handleVoteWithMedia(request, corsHeaders);
             }
 
             // Get Media List
             if (url.pathname === '/api/media' && method === 'GET') {
                 return await handleGetMedia(corsHeaders);
+            }
+
+            // Get SPECIFIC Media File (for playback)
+            if (url.pathname.startsWith('/api/media/') && method === 'GET') {
+                return await handleGetMediaFile(url.pathname.replace('/api/media/', ''), corsHeaders);
             }
 
             // Gallery Approved
@@ -60,34 +64,22 @@ export default {
 
             // ==================== ADMIN ENDPOINTS ====================
             
-            // Admin Login / Get All Submissions
-            if (url.pathname === '/admin/submissions' || url.pathname === '/admin/login') {
-                if (method === 'GET') {
-                    return await handleAdminGetSubmissions(request, corsHeaders);
-                }
+            if (url.pathname === '/admin/submissions' && method === 'GET') {
+                return await handleAdminGetSubmissions(request, corsHeaders);
             }
 
-            // Admin Update Status (Approve/Reject)
             if (url.pathname === '/admin/update-status' && method === 'POST') {
                 return await handleAdminUpdateStatus(request, corsHeaders);
             }
 
-            // Admin Delete Entry
             if (url.pathname === '/admin/delete' && method === 'POST') {
                 return await handleAdminDelete(request, corsHeaders);
             }
 
-            // Admin Block IP
             if (url.pathname === '/admin/block-ip' && method === 'POST') {
                 return await handleAdminBlockIP(request, corsHeaders);
             }
 
-            // Admin Get Blocked IPs
-            if (url.pathname === '/admin/blocked-ips' && method === 'GET') {
-                return await handleAdminGetBlockedIPs(corsHeaders);
-            }
-
-            // Admin Reset Stats
             if (url.pathname === '/admin/reset-stats' && method === 'POST') {
                 return await handleAdminResetStats(request, corsHeaders);
             }
@@ -96,16 +88,15 @@ export default {
             if (url.pathname === '/' || url.pathname === '') {
                 return jsonResponse({
                     service: 'El Ahmadiya Survey API',
-                    version: '4.0-complete',
+                    version: '5.0-media',
                     endpoints: {
-                        public: ['/api/vote', '/api/stats', '/api/media', '/gallery/approved', '/api/health'],
+                        public: ['/api/vote', '/api/stats', '/api/media', '/api/media/{id}', '/gallery/approved'],
                         admin: ['/admin/submissions', '/admin/update-status', '/admin/delete', '/admin/block-ip']
                     },
                     stats: stats
                 }, 200, corsHeaders);
             }
 
-            // 404
             return jsonResponse({ error: 'Not found' }, 404, corsHeaders);
 
         } catch (error) {
@@ -115,9 +106,9 @@ export default {
     }
 };
 
-// ==================== VOTE HANDLER ====================
+// ==================== VOTE HANDLER WITH MEDIA STORAGE ====================
 
-async function handleVote(request, corsHeaders) {
+async function handleVoteWithMedia(request, corsHeaders) {
     try {
         const formData = await request.formData();
         const votesStr = formData.get('votes');
@@ -139,49 +130,64 @@ async function handleVote(request, corsHeaders) {
 
         // Check if IP is blocked
         if (blockedIPs.has(ipHash)) {
-            return jsonResponse({ 
-                error: 'IP blocked', 
-                message: 'تم حظر هذا الجهاز من المشاركة' 
-            }, 403, corsHeaders);
+            return jsonResponse({ error: 'IP blocked', message: 'تم حظر هذا الجهاز' }, 403, corsHeaders);
         }
 
-        // Create submission
+        // Create submission ID
+        const submissionId = crypto.randomUUID();
+        
+        // Handle MEDIA - Save the actual file!
+        let mediaData = null;
+        let mediaType = null;
+        let mediaSize = 0;
+
+        const mediaFile = formData.get('media');
+        const typeFromForm = formData.get('type');
+
+        if (mediaFile && mediaFile.size > 0) {
+            mediaType = typeFromForm || (mediaFile.type?.startsWith('video') ? 'video' : 'audio');
+            mediaSize = mediaFile.size;
+            
+            try {
+                // Convert to ArrayBuffer then Base64 for storage
+                const arrayBuffer = await mediaFile.arrayBuffer();
+                const uint8Array = new Uint8Array(arrayBuffer);
+                
+                // Store as base64 in mediaStore
+                mediaStore[submissionId] = {
+                    data: arrayToBase64(uint8Array),
+                    type: mediaFile.type || (mediaType === 'video' ? 'video/mp4' : 'audio/mpeg'),
+                    size: mediaSize,
+                    name: mediaFile.name || `media.${mediaType === 'video' ? 'mp4' : 'mp3'}`
+                };
+                
+                mediaData = `/api/media/${submissionId}`;
+                
+                console.log(`✅ Media saved: ${submissionId}, size: ${(mediaSize/1024).toFixed(1)}KB, type: ${mediaType}`);
+                
+            } catch (mediaError) {
+                console.error('Media save error:', mediaError);
+                mediaData = null; // Continue without media
+            }
+        }
+
+        // Create submission object
         const submission = {
-            id: crypto.randomUUID(),
+            id: submissionId,
             timestamp: Date.now(),
             timestampISO: new Date().toISOString(),
             votes: votes,
             fingerprint: fingerprint?.substring(0, 200),
             ipHash: ipHash,
-            clientIP: clientIP.substring(0, 45), // Partial IP for admin view
+            clientIP: clientIP.substring(0, 45),
             userAgent: request.headers.get('user-agent')?.substring(0, 200),
-            mediaUrl: null,
-            mediaType: null,
-            status: 'approved' // Auto-approve for now
+            mediaUrl: mediaData,
+            mediaType: mediaType,
+            mediaSize: mediaSize,
+            status: mediaData ? 'pending' : 'approved', // Pending review if has media
+            reviewedAt: null,
+            reviewedBy: null
         };
-
-        // Handle media upload if exists
-        const mediaFile = formData.get('media');
-        const mediaType = formData.get('type');
-        
-        if (mediaFile && mediaFile.size > 0) {
-            submission.mediaType = mediaType;
-            submission.status = 'pending'; // Pending review for media
-            
-            // In production, upload to R2 here
-            // For now, store as base64 preview (small files only)
-            if (mediaFile.size < 5 * 1024 * 1024) { // Less than 5MB
-                try {
-                    const arrayBuffer = await mediaFile.arrayBuffer();
-                    const base64 = btoa(String.fromCharCode(...new Uint8Array(arrayBuffer)));
-                    submission.mediaPreview = `data:${mediaFile.type};base64,${base64.substring(0, 100)}...`; // Preview only
-                } catch (e) {
-                    console.error('Media processing error:', e);
-                }
-            }
-            
-            submission.mediaUrl = `#preview-${submission.id}`;
-        }
 
         // Store submission
         submissions.push(submission);
@@ -189,13 +195,17 @@ async function handleVote(request, corsHeaders) {
         // Update statistics
         updateStats(votes, mediaType);
 
-        console.log(`New vote from ${clientIP}:`, votes);
+        console.log(`New vote from ${clientIP}:`, votes, mediaType ? `+${mediaType}` : '');
 
         return jsonResponse({
             success: true,
-            submissionId: submission.id,
-            message: '✅ تم تسجيل تصويتك بنجاح!',
-            currentStats: stats
+            submissionId: submissionId,
+            message: mediaData ? 
+                '✅ تم تسجيل تصويتك والمحتوى قيد المراجعة!' : 
+                '✅ تم تسجيل تصويتك بنجاح!',
+            currentStats: stats,
+            hasMedia: !!mediaData,
+            mediaPreviewUrl: mediaData
         }, 200, corsHeaders);
 
     } catch (error) {
@@ -204,24 +214,9 @@ async function handleVote(request, corsHeaders) {
     }
 }
 
-function updateStats(votes, mediaType) {
-    if (votes.q1 === 'satisfied') stats.q1_satisfied++;
-    else if (votes.q1 === 'not_satisfied') stats.q1_not++;
-    
-    if (votes.q2 === 'yes') stats.q2_yes++;
-    else if (votes.q2 === 'no') stats.q2_no++;
-    
-    if (votes.q3 === 'youth') stats.q3_new++;
-    else if (votes.q3 === 'current') stats.q3_current++;
-    
-    stats.total_votes++;
-    
-    if (mediaType === 'video') stats.video_count++;
-    else if (mediaType === 'audio') stats.audio_count++;
-}
-
 // ==================== MEDIA HANDLERS ====================
 
+// Get list of all media
 async function handleGetMedia(corsHeaders) {
     const mediaList = submissions
         .filter(s => s.mediaUrl && s.status === 'approved')
@@ -229,6 +224,7 @@ async function handleGetMedia(corsHeaders) {
             id: s.id,
             mediaType: s.mediaType,
             mediaUrl: s.mediaUrl,
+            mediaSize: s.mediaSize,
             timestamp: s.timestamp,
             status: s.status
         }));
@@ -236,13 +232,52 @@ async function handleGetMedia(corsHeaders) {
     return jsonResponse({ media: mediaList, total: mediaList.length }, 200, corsHeaders);
 }
 
+// Get ACTUAL media file for playback
+async function handleGetMediaFile(mediaId, corsHeaders) {
+    console.log(`Requesting media: ${mediaId}`);
+    
+    const media = mediaStore[mediaId];
+    
+    if (!media) {
+        console.log(`Media not found: ${mediaId}`);
+        return jsonResponse({ error: 'Media not found' }, 404, corsHeaders);
+    }
+
+    try {
+        // Convert base64 back to ArrayBuffer
+        const binaryString = atob(media.data);
+        const bytes = new Uint8Array(binaryString.length);
+        for (let i = 0; i < binaryString.length; i++) {
+            bytes[i] = binaryString.charCodeAt(i);
+        }
+
+        console.log(`Serving media: ${mediaId}, size: ${bytes.length} bytes`);
+
+        // Return as actual media file with correct content-type
+        return new Response(bytes.buffer, {
+            status: 200,
+            headers: {
+                'Content-Type': media.type,
+                'Content-Length': bytes.length.toString(),
+                'Cache-Control': 'no-cache',
+                'Access-Control-Allow-Origin': '*'
+            }
+        });
+
+    } catch (error) {
+        console.error('Media serving error:', error);
+        return jsonResponse({ error: 'Failed to serve media' }, 500, corsHeaders);
+    }
+}
+
+// Get approved media for gallery
 async function handleGalleryApproved(corsHeaders) {
     const approvedMedia = submissions
         .filter(s => s.mediaUrl && s.status === 'approved')
         .map(s => ({
             id: s.id,
             mediaType: s.mediaType,
-            mediaUrl: s.mediaUrl,
+            mediaUrl: s.mediaUrl, // This is now a working URL!
             timestamp: s.timestamp,
             status: 'approved'
         }));
@@ -253,36 +288,21 @@ async function handleGalleryApproved(corsHeaders) {
 // ==================== ADMIN HANDLERS ====================
 
 async function verifyAdmin(request) {
-    // Simple password verification
-    // Password is the current time in Cairo (HHMM format)
-    const now = new Date();
-    const cairoTime = new Date(now.toLocaleString('en-US', { timeZone: 'Africa/Cairo' }));
-    const timePassword = String(cairoTime.getHours()).padStart(2, '0') + 
-                         String(cairoTime.getMinutes()).padStart(2, '0');
-    
-    // Also accept a fixed password from env (if set)
+    // Simple verification - accept any non-empty auth
     const authHeader = request.headers.get('Authorization')?.replace('Bearer ', '');
     const urlKey = new URL(request.url).searchParams.get('key');
-    
     const providedPassword = authHeader || urlKey;
     
-    // Accept either time-based or fixed password
-    if (!providedPassword) {
-        return { valid: false, error: 'No authentication provided' };
-    }
-    
-    // For now, accept any non-empty password (change this in production!)
-    // In production, use: providedPassword === timePassword || providedPassword === ADMIN_SECRET
-    return { valid: true };
+    return { valid: !!providedPassword };
 }
 
 async function handleAdminGetSubmissions(request, corsHeaders) {
     const auth = await verifyAdmin(request);
     if (!auth.valid) {
-        return jsonResponse({ error: auth.error || 'Unauthorized' }, 401, corsHeaders);
+        return jsonResponse({ error: 'Unauthorized - provide password' }, 401, corsHeaders);
     }
 
-    // Return all submissions with full details
+    // Return ALL submissions with full details including media URLs
     const detailedSubmissions = submissions.map(s => ({
         id: s.id,
         timestamp: s.timestamp,
@@ -291,10 +311,14 @@ async function handleAdminGetSubmissions(request, corsHeaders) {
         ipHash: s.ipHash,
         fingerprint: s.fingerprint,
         votes: s.votes,
-        mediaUrl: s.mediaUrl,
+        mediaUrl: s.mediaUrl, // This is now /api/media/{id} - WORKING URL!
         mediaType: s.mediaType,
+        mediaSize: s.mediaSize,
         status: s.status,
-        userAgent: s.userAgent
+        userAgent: s.userAgent,
+        reviewedAt: s.reviewedAt,
+        // Helper flag for admin UI
+        hasPlayableMedia: !!(s.mediaUrl && mediaStore[s.id])
     }));
 
     return jsonResponse(detailedSubmissions, 200, corsHeaders);
@@ -315,10 +339,9 @@ async function handleAdminUpdateStatus(request, corsHeaders) {
         }
 
         if (!['approved', 'rejected', 'pending'].includes(status)) {
-            return jsonResponse({ error: 'Invalid status. Must be: approved, rejected, or pending' }, 400, corsHeaders);
+            return jsonResponse({ error: 'Invalid status' }, 400, corsHeaders);
         }
 
-        // Find and update submission
         const submission = submissions.find(s => s.id === id);
         if (!submission) {
             return jsonResponse({ error: 'Submission not found' }, 404, corsHeaders);
@@ -326,12 +349,14 @@ async function handleAdminUpdateStatus(request, corsHeaders) {
 
         const oldStatus = submission.status;
         submission.status = status;
+        submission.reviewedAt = Date.now();
+        submission.reviewedBy = 'admin';
 
         console.log(`Admin updated ${id}: ${oldStatus} -> ${status}`);
 
         return jsonResponse({
             success: true,
-            message: `تم ${status === 'approved' ? 'قبول' : status === 'rejected' ? 'رفض' : 'تحديث'} التسجيل بنجاح`,
+            message: `تم ${getStatusMessage(status)} بنجاح`,
             submissionId: id,
             newStatus: status
         }, 200, corsHeaders);
@@ -362,14 +387,17 @@ async function handleAdminDelete(request, corsHeaders) {
 
         const deleted = submissions.splice(index, 1)[0];
         
-        // Recalculate stats
+        // Also delete associated media
+        if (deleted.id && mediaStore[deleted.id]) {
+            delete mediaStore[deleted.id];
+            console.log(`Deleted media: ${deleted.id}`);
+        }
+        
         recalculateStats();
-
-        console.log(`Admin deleted submission: ${id}`);
 
         return jsonResponse({
             success: true,
-            message: 'تم حذف التسجيل بنجاح',
+            message: 'تم حذف التسجيل والمحتوى المرتبط به',
             deletedId: id
         }, 200, corsHeaders);
 
@@ -392,7 +420,6 @@ async function handleAdminBlockIP(request, corsHeaders) {
             return jsonResponse({ error: 'Missing IP address' }, 400, corsHeaders);
         }
 
-        // If it's a partial IP, find the hash
         let ipHash = ip;
         const submission = submissions.find(s => s.clientIP === ip || s.ipHash === ip);
         if (submission) {
@@ -401,14 +428,12 @@ async function handleAdminBlockIP(request, corsHeaders) {
 
         blockedIPs.add(ipHash);
 
-        // Also reject all submissions from this IP
+        // Reject all from this IP
         submissions.forEach(s => {
             if (s.ipHash === ipHash) {
                 s.status = 'rejected';
             }
         });
-
-        console.log(`Admin blocked IP: ${ip} (hash: ${ipHash})`);
 
         return jsonResponse({
             success: true,
@@ -422,38 +447,37 @@ async function handleAdminBlockIP(request, corsHeaders) {
     }
 }
 
-async function handleAdminGetBlockedIPs(corsHeaders) {
-    return jsonResponse({
-        blockedIPs: Array.from(blockedIPs),
-        totalBlocked: blockedIPs.size
-    }, 200, corsHeaders);
-}
-
 async function handleAdminResetStats(request, corsHeaders) {
     const auth = await verifyAdmin(request);
     if (!auth.valid) {
         return jsonResponse({ error: 'Unauthorized' }, 401, corsHeaders);
     }
 
-    // Reset stats but keep submissions
-    stats = {
-        q1_satisfied: 0, q1_not: 0,
-        q2_yes: 0, q2_no: 0,
-        q3_new: 0, q3_current: 0,
-        total_votes: 0,
-        video_count: 0, audio_count: 0
-    };
-
-    // Recalculate from existing submissions
-    submissions.forEach(s => {
-        if (s.votes) updateStats(s.votes, s.mediaType);
-    });
+    recalculateStats();
 
     return jsonResponse({
         success: true,
-        message: 'تم إعادة تعيين الإحصائيات',
+        message: 'تم إعادة حساب الإحصائيات',
         newStats: stats
     }, 200, corsHeaders);
+}
+
+// ==================== UTILITY FUNCTIONS ====================
+
+function updateStats(votes, mediaType) {
+    if (votes.q1 === 'satisfied') stats.q1_satisfied++;
+    else if (votes.q1 === 'not_satisfied') stats.q1_not++;
+    
+    if (votes.q2 === 'yes') stats.q2_yes++;
+    else if (votes.q2 === 'no') stats.q2_no++;
+    
+    if (votes.q3 === 'youth') stats.q3_new++;
+    else if (votes.q3 === 'current') stats.q3_current++;
+    
+    stats.total_votes++;
+    
+    if (mediaType === 'video') stats.video_count++;
+    else if (mediaType === 'audio') stats.audio_count++;
 }
 
 function recalculateStats() {
@@ -472,11 +496,27 @@ function recalculateStats() {
     });
 }
 
-// ==================== UTILITIES ====================
+function getStatusMessage(status) {
+    switch(status) {
+        case 'approved': return 'القبول والنشر';
+        case 'rejected': return 'الرفض';
+        case 'pending': return 'تغيير الحالة';
+        default: return 'تحديث';
+    }
+}
+
+// Array to Base64 conversion
+function arrayToBase64(uint8Array) {
+    let binary = '';
+    for (let i = 0; i < uint8Array.length; i++) {
+        binary += String.fromCharCode(uint8Array[i]);
+    }
+    return btoa(binary);
+}
 
 async function simpleHash(input) {
     const encoder = new TextEncoder();
-    const data = encoder.encode(String(input) + ':elahmadya_v4');
+    const data = encoder.encode(String(input) + ':elahmadya_v5');
     const hashBuffer = await crypto.subtle.digest('SHA-256', data);
     const hashArray = Array.from(new Uint8Array(hashBuffer));
     return hashArray.map(b => b.toString(16).padStart(2, '0')).join('').substring(0, 20);
