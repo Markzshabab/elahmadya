@@ -63,7 +63,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
             data.forEach((item, index) => {
                 const card = document.createElement('div');
-                card.className = 'media-card';
+                card.className = 'media-card featured-card';
                 
                 const date = item.timestamp ? 
                     new Date(item.timestamp).toLocaleDateString('ar-EG', { 
@@ -78,6 +78,7 @@ document.addEventListener("DOMContentLoaded", () => {
                 if (item.mediaType === 'video' || mediaUrl.includes('.mp4') || mediaUrl.includes('.webm')) {
                     // فيديو مع حماية كاملة
                     card.innerHTML = `
+                        <div class="featured-ribbon"><i class="fas fa-star"></i> مشاركة مميزة</div>
                         <div class="video-container" id="video-container-${index}">
                             <!-- طبقة الحماية -->
                             <div class="video-protection-overlay" 
@@ -149,6 +150,7 @@ document.addEventListener("DOMContentLoaded", () => {
                 } else {
                     // صوتي - حماية أقل
                     card.innerHTML = `
+                        <div class="featured-ribbon"><i class="fas fa-star"></i> مشاركة مميزة</div>
                         <div style="text-align:center; padding: 20px 0; color: var(--primary);">
                             <i class="fas fa-microphone-alt fa-3x"></i>
                             <p style="margin-top: 10px; color: var(--text-light);">رسالة صوتية</p>
