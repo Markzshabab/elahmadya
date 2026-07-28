@@ -3,7 +3,7 @@
 // =========================================================
 const CONFIG = {
   API_BASE: "https://ahmadiya-survey-worker.YOUR_SUBDOMAIN.workers.dev",
-  TURNSTILE_SITE_KEY: "REPLACE_WITH_TURNSTILE_SITE_KEY",
+  TURNSTILE_SITE_KEY: "0x4AAAAAAD_b8KTI0Np47kkI",
   MAX_RECORD_SECONDS: 30,
   MAX_FILE_BYTES: 100 * 1024 * 1024,
 };
